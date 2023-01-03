@@ -1,5 +1,4 @@
 # Quant-Project
------
 ## Overview
 ### 1. 프로젝트 주제
 - AI를 활용한 퀀트 팩터 포트폴리오 개발
