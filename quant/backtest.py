@@ -148,4 +148,24 @@ class PortOptimPy:
             qs.reports.html(port_rets, output='./file-name.html')
 
 if __name__ == '__main__':
-    pass
+    def get_etf_price_data():
+        tickers = ['XLB', 'XLE', 'XLF', 'XLI', 'XLK', 'XLP', 'XLU', 'XLV', 'XLY']
+        etf = yf.Tickers(tickers)
+        data = etf.history(start='2010-01-01', actions=False)
+        data.drop(['Open', 'High', 'Low', 'Volume'], inplace=True, axis=1)
+        data = data.droplevel(0, axis=1)
+        data.ffill(inplace=True)
+        df = data.resample('W').last()
+        return df
+
+    df = get_etf_price_data()
+    
+    # 엔진 초기화
+    engine = PortOptimPy(df)
+    
+    # 백테스팅 실행
+    res = engine.run(cs_model='RP', ts_model='VT', cost=0.0005)
+    
+    port_weights = res[0]
+    port_asset_rets = res[1]
+    port_rets = res[2]
