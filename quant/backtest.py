@@ -53,7 +53,7 @@ class PortOptimPy:
         return cost_df
 
     # 백테스팅 실행 함수
-    def run(self, cs_model, ts_model, cost):
+    def run(self, cs_model='auto', ts_model='auto', cost=0.005):
         # 빈 딕셔너리
         backtest_dict = {}
         
@@ -74,6 +74,8 @@ class PortOptimPy:
                 backtest_dict[index] = self.CrossSectional().emv(self.vol[i])
             elif cs_model == 'RP':
                 backtest_dict[index] = self.CrossSectional().rp(self.cov[i])
+            elif cs_model == 'auto':
+                backtest_dict[index] = self.CrossSectional().auto(self.er[i], self.cov[i])
         
         # 횡적 가중치 데이터프레임
         cs_weights = pd.DataFrame(list(backtest_dict.values()), index=backtest_dict.keys(), columns=rets.columns)
@@ -94,6 +96,8 @@ class PortOptimPy:
             ts_weights = (self.TimeSeries().kl(cs_port_rets, self.param))
         elif ts_model == 'CPPI':
             ts_weights = (self.TimeSeries().cppi(cs_port_rets))
+        elif ts_model == 'auto':
+            ts_weights = (self.TimeSeries().auto(cs_port_rets, self.param))
         elif ts_model == None:
             ts_weights = 1
 

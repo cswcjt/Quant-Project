@@ -3,6 +3,17 @@ import pandas as pd
 from typing import *
 
 def annualize_scaler(freq: str) -> int:
+    """_summary_
+
+    Args:
+        freq (str): _description_
+
+    Raises:
+        Exception: _description_
+
+    Returns:
+        int: _description_
+    """
     annualize_scale_dict = {
         'day': 252,
         'week': 52,
