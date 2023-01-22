@@ -1,5 +1,8 @@
+import pandas as pd
+import numpy as np
+
 # 주식 모멘텀 클래스
-class Momentum:
+class MomentumFactor:
     """Momentum 전략을 관리할 클래스
 
     Returns:
@@ -54,7 +57,7 @@ class Momentum:
         else:
             signal = long_signal + short_signal
         
-        return signal
+        return signal.iloc[self.lookback_window:,]#.dropna(inplace=True)
     
     # 상대 모멘텀 시그널 계산 함수
     def relative_momentum(self, long_only: bool=True) -> pd.DataFrame:
@@ -90,7 +93,7 @@ class Momentum:
         else:
             signal = long_signal + short_signal
 
-        return signal
+        return signal.iloc[self.lookback_window:,]#.dropna(inplace=True)
     
     # 듀얼 모멘텀 시그널 계산 함수
     def dual_momentum(self, long_only: bool=True) -> pd.DataFrame:
@@ -113,6 +116,7 @@ class Momentum:
         # 듀얼 모멘텀 시그널
         signal = (abs_signal == rel_signal) * abs_signal
 
+        # 절대 모멘텀과 상대 모멘텀의 시그널을 받을 때 이미 signal.iloc[self.lookback_window:,] 반영되어 있음
         return signal
 
     # def momentum_score(self, long_only: bool=True):
