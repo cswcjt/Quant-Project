@@ -35,7 +35,8 @@ class TimeSeries:
             pd.DataFrame: 투자비중 df
         """
         
-        weights = self.cs_weight * weight_target
+        weights = pd.DataFrame({'PORTFOLIO': weight_target}, index=self.port_rets.index)
+        
         return weights
 
     def vt(self, vol_target: int=0.1) -> pd.DataFrame:
