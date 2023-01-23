@@ -24,6 +24,19 @@ class TimeSeries:
         self.cs_weight = cs_weight
         self.param = param
         self.call_method = call_method
+        
+    def ew(self, weight_target: int=0.7) -> pd.DataFrame:
+        """_summary_
+
+        Args:
+            weight_target (int, optional): 위험자산에 투자할 비중. Defaults to 0.7.
+
+        Returns:
+            pd.DataFrame: 투자비중 df
+        """
+        
+        weights = self.cs_weight * weight_target
+        return weights
 
     def vt(self, vol_target: int=0.1) -> pd.DataFrame:
         """_summary_
@@ -129,7 +142,10 @@ class TimeSeries:
         method = self.call_method
         cs_weight = self.cs_weight
         
-        if method == 'vt':
+        if method == 'ew':
+            ts_weight = self.ew()
+            
+        elif method == 'vt':
             ts_weight = self.vt()
             
         elif method == 'cvt': 
