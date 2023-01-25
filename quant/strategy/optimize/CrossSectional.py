@@ -1,189 +1,244 @@
 # 패키지 임포트
-import matplotlib.pyplot as plt
+
 import numpy as np
 import pandas as pd
 import yfinance as yf
+from pandas.tseries.offsets import *
 
 from scipy.optimize import minimize
 from scipy.stats import norm
 
 
-class CrossSectional:
-    # 횡적 배분 모델 클래스
+class Equalizer:
+    """
+    횡적 배분 모델들 중 동일비중 방법론에 기반한 모델들
+    
+    사용 예시:
+    test_ew_weight = Equalizer(signal=test_rel_signal, rebal_price=test_rebal_price_df, param=12)
+    ew_weight = test_ew_weight.ew()
+    """
+    
+    def __init__(self, signal: pd.DataFrame, rebal_price: pd.DataFrame, param: int) -> pd.DataFrame:
+        """__init__
+        
+        Args:
+            signal (pd.DataFrame): 팩터를 적용한 결과로 각 자산에 대한 투자 여부를 알려주는 df
+            rebal_price (pd.DataFrame): 리밸런싱 날의 각 자산의 종가 정보를 갖고 있는 df
+            param (int): 연율화를 위한 상수값 설정
 
-    def __init__(self, rebal_price: pd.DataFrame, param: int):
+        Returns:
+            pd.DataFrame: 각 자산의 투자비중을 알려주는 df
+        """
 
-        # 연율화 패러미터
+        # 팩터의 시그널
+        self.signal = signal
+
+        # 총 투자자산의 개수
+        self.noa = len(rebal_price.columns)
+
+        # 리밸런싱별 수익률
+        self.rets = self.signal * rebal_price.pct_change().dropna()
+        
+        # 연율화 상수
         self.param = param
 
-        # 일별 수익률
-        self.rets = rebal_price.pct_change().dropna()
+        # 기대수익률(연율화 수익률): 12개월
+        self.er = np.array(self.rets.mean() * self.param)
 
-        # 기대수익률
-        self.er = np.array(self.rets * self.param)
+        # 연율화 변동성: 12개월 
+        self.vol = np.array(self.rets.std() * np.sqrt(self.param))
 
-        # 변동성
-        self.vol = np.array(self.rets.rolling(
-            self.param).std() * np.sqrt(self.param))
+        # 연율화 공분산행렬: 12개월
+        self.cov = self.rets.cov().dropna() * self.param
 
-        # 공분산행렬
-        cov = self.rets.rolling(self.param).cov().dropna() * self.param
-        self.cov = cov.values.reshape(
-            int(cov.shape[0]/cov.shape[1]), cov.shape[1], cov.shape[1])
+    # BETA(buy and hold 가중 함수)
+    def beta(self) -> pd.DataFrame:
+        """beta
 
-    # EW(동일 비중 가중치 계산 함수)
+        Returns:
+            weights: 시그널을 무시하고 모든 자산에 동일한 비중으로 투자할 때의 weight df -> 벤치마크로 사용하기 위해 만듬
+            밑에서 부터는 시그널이 존재하는 자산에만 비중을 산출하는 방법론들임
+        """
+        weights = self.signal.copy()
+        weights.iloc[:] = 1 / self.noa
 
-    def ew(self, er):
-        noa = er.shape[0]
-        weights = np.ones_like(er) * (1/noa)
         return weights
+    
+    # EW(동일 비중 가중치 계산 함수)
+    def ew(self) -> pd.DataFrame:
+        """ew
 
-    # MSR(샤프비율 최대화)
-    def msr(self, er, cov):
-        noa = er.shape[0]
-        init_guess = np.repeat(1/noa, noa)
+        Returns:
+            weights: 투자 시그널이 존재하는 종목에만 동일한 비중으로 투자할 때의 weight df
+        """
+        weights = self.signal.apply(lambda series: series / series.sum(), axis=1)
 
-        # 제약조건 및 상하한값
-        bounds = ((0.0, 1.0), ) * noa
-        weights_sum_to_1 = {'type': 'eq',
-                            'fun': lambda weights: np.sum(weights) - 1}
-
-        # 목적함수 : 마이너스 샤프비율
-        def neg_sharpe(weights, er, cov):
-            r = weights.T @ er
-            vol = np.sqrt(weights.T @ cov @ weights)
-            return - r / vol
-
-        weights = minimize(neg_sharpe,
-                           init_guess,
-                           args=(er, cov),
-                           method='SLSQP',
-                           constraints=(weights_sum_to_1,),
-                           bounds=bounds)
-
-        return weights.x
-
-    # GMV(최소 변동성)
-    def gmv(self, cov):
-        noa = cov.shape[0]
-        init_guess = np.repeat(1/noa, noa)
-
-        # 제약조건 및 상하한값
-        bounds = ((0.0, 1.0), ) * noa
-        weights_sum_to_1 = {'type': 'eq',
-                            'fun': lambda weights: np.sum(weights) - 1}
-
-        # 목적함수 : 포트폴리오 변동성
-        def port_vol(weights, cov):
-            vol = np.sqrt(weights.T @ cov @ weights)
-            return vol
-
-        weights = minimize(port_vol, init_guess,
-                           args=(cov),
-                           method='SLSQP',
-                           constraints=(weights_sum_to_1,),
-                           bounds=bounds)
-
-        return weights.x
-
-    # MDP(최대 분산비율)
-    def mdp(self, vol, cov):
-        noa = vol.shape[0]
-        init_guess = np.repeat(1/noa, noa)
-
-        # 제약조건 및 상하한값
-        bounds = ((0.0, 1.0), ) * noa
-        weights_sum_to_1 = {'type': 'eq',
-                            'fun': lambda weights: np.sum(weights) - 1}
-
-        # 목적함수 : 마이너스 분산비율
-        def neg_div_ratio(weights, vol, cov):
-            weighted_vol = weights.T @ vol
-            port_vol = np.sqrt(weights.T @ cov @ weights)
-            return - weighted_vol / port_vol
-
-        weights = minimize(neg_div_ratio,
-                           init_guess,
-                           args=(vol, cov),
-                           method='SLSQP',
-                           constraints=(weights_sum_to_1,),
-                           bounds=bounds)
-
-        return weights.x
-
-    # RP(리스크 패리티)
-    def rp(self, cov):
-        noa = cov.shape[0]
-        init_guess = np.repeat(1/noa, noa)
-
-        # 목표 위험기여도 : 동등 위험 기여
-        target_risk = np.repeat(1/noa, noa)
-
-        # 제약조건 및 상하한값
-        bounds = ((0.0, 1.0), ) * noa
-        weights_sum_to_1 = {'type': 'eq',
-                            'fun': lambda weights: np.sum(weights) - 1}
-
-        # 목적 함수 : 목표 위험 기여도와의 오차 최소화
-        def msd_risk(weights, target_risk, cov):
-
-            port_var = weights.T @ cov @ weights
-            marginal_contribs = cov @ weights
-
-            risk_contribs = np.multiply(
-                marginal_contribs, weights.T) / port_var
-
-            w_contribs = risk_contribs
-            return ((w_contribs - target_risk)**2).sum()
-
-        weights = minimize(msd_risk,
-                           init_guess,
-                           args=(target_risk, cov),
-                           method='SLSQP',
-                           constraints=(weights_sum_to_1,),
-                           bounds=bounds)
-        return weights.x
+        return weights
 
     # EMV(역변동성)
-    def emv(self, vol):
-        inv_vol = 1 / vol
-        weights = inv_vol / inv_vol.sum()
+    def emv(self) -> pd.DataFrame:
+        """emv
+
+        Returns:
+            weights: 투자 시그널이 존재하는 종목들의 변동성의 역가중으로 투자 비중을 산출한 weight df
+        """
+        temp_weights = self.vol * self.signal
+        weights = temp_weights.apply(lambda series: series / series.sum(), axis=1)
 
         return weights
 
-    # 백테스팅 실행 함수
 
-    def run(self, cs_model):
-        # 빈 딕셔너리
-        backtest_dict = {}
+class Optimization(Equalizer):
+    """
+    횡적 배분 모델들 중 최적화 기법을 사용하는 모델들
+    scipy.optimize의 minimize 함수를 사용해야 하기 때문에 Equalizer 클래스와 다르게 만들었음
+    (refactoring 환영합니다..)
+    
+    사용 예시: 
+    msr = Optimization(signal=test_rel_signal, rebal_price=test_rebal_price_df, param=12, call_method='msr')
+    msr.weight = msr.run()
+    
+    동작 순서: run() -> target_assets() -> opt_processing() -> minimize()
+    """
+    
+    def __init__(self, signal: pd.DataFrame, rebal_price: pd.DataFrame, param: int, call_method: str):
+        super().__init__(signal, rebal_price, param)
+        """__init__
+        call_method: 사용할 모델의 이름
+        나머지는 Equalizer와 동일
+        """
 
-        # 일별 수익률 데이터프레임
-        rets = self.rets
+        self.call_method = call_method
+        self.rebal_price = rebal_price
+        
+        # 각 리밸런싱 날에 시그널이 몇 개가 존재하는 알려주는 컬럼 추가
+        add_total_signal = self.signal.copy()
+        add_total_signal['total_signal'] = add_total_signal.sum(axis=1)
+        self.add_total_signal = add_total_signal
+        
+    # opt_processing
+    def opt_processing(self, target_assets: list, present_date: pd.DatetimeIndex) -> pd.DataFrame:
+        """opt_processing: 최적화 함수들이 작동하는 파트
 
-        # 횡적 배분 모델 선택 및 실행
-        for i, index in enumerate(rets.index[self.param-1:]):
-            if cs_model == 'EW':
-                backtest_dict[index] = self.ew(self.er[i])
-            elif cs_model == 'MSR':
-                backtest_dict[index] = self.msr(self.er[i], self.cov[i])
-            elif cs_model == 'GMV':
-                backtest_dict[index] = self.gmv(self.cov[i])
-            elif cs_model == 'MDP':
-                backtest_dict[index] = self.mdp(self.vol[i], self.cov[i])
-            elif cs_model == 'EMV':
-                backtest_dict[index] = self.emv(self.vol[i])
-            elif cs_model == 'RP':
-                backtest_dict[index] = self.rp(self.cov[i])
+        Args:
+            target_assets (_type_): 시그널이 존재하는 티커들
+            present_date (_type_): 현재 날짜를 기준으로 1년(12개월) 기대수익률, 변동성, 공분산을 구하기 위해 필요
 
-        # 횡적 가중치 데이터프레임
-        cs_weights = pd.DataFrame(
-            list(backtest_dict.values()), index=backtest_dict.keys(), columns=rets.columns)
-        cs_weights.fillna(0, inplace=True)
+        Returns:
+            weights: 최적화의 결과물인 투자비중 df
+        """
+        
+        # 사용할 모델 이름
+        method = self.call_method
+        
+        # 1년(12개월) 수익률, 기대수익률, 변동성, 공분산을 구하기 위한 시간정보 
+        past = pd.Timestamp(present_date) - DateOffset(years = 1)
+        present = pd.Timestamp(present_date) 
+        
+        # 1년간의 수익률을 기준으로 기대수익률, 변동성, 공분산을 구한다  
+        rets = self.rebal_price.loc[past : present, target_assets].pct_change()
+        er = np.array(rets.mean() * self.param)
+        vol = np.array(rets.std() * np.sqrt(self.param))
+        cov = rets.cov() * self.param
+        
+        # minimize 함수 사용을 위한 초기 설정들: init_guess, bounds, weights_sum_to_1
+        # init_guess: 초기 비중 설정 -> 최적화의 대상
+        # bounds: 최적화할 비중이 몇 개인지 알려줘야한다
+        # weights_sum_to_1: 최적화가 완료된 각각의 비중들의 합이 1이 되도록 제한 설정
+        init_guess = np.repeat(1/len(target_assets), len(target_assets))
+        bounds = ((0,1) for i in range(len(target_assets)))
+        weights_sum_to_1 = ({'type': 'eq', 'fun': lambda x:  np.sum(x) - 1}) 
 
-        # 횡적 배분 모델 자산 수익률
-        cs_rets = cs_weights.shift(1) * rets.iloc[self.param-1:, :]
+        if method == 'msr':
+            def neg_sharpe(weights, er, cov):
+                r = weights.T @ er
+                vol = np.sqrt(weights.T @ cov @ weights)
+                return - r / vol
 
-        # 횡적 배분 모델 포트폴리오 수익률
-        cs_port_rets = cs_rets.sum(axis=1)
+            weights = minimize(neg_sharpe,
+                            init_guess,
+                            args=(er, cov),
+                            method='SLSQP',
+                            constraints=(weights_sum_to_1,), 
+                            bounds=bounds)
 
-        return cs_port_rets, cs_weights
+            return weights.x
+        
+        elif method == 'gmv':
+            def port_vol(weights, cov):
+                return np.sqrt(weights.T @ cov @ weights)
+            
+            weights = minimize(port_vol, 
+                                init_guess,
+                                args=(cov), 
+                                method='SLSQP', 
+                                constraints=(weights_sum_to_1,), 
+                                bounds=bounds
+                                )
+
+            return weights.x
+        
+        elif method == 'mdp':
+            def neg_div_ratio(weights, vol, cov):
+                weighted_vol = weights.T @ vol
+                port_vol = np.sqrt(weights.T @ cov @ weights)
+                return - weighted_vol / port_vol
+            
+            weights = minimize(neg_div_ratio, 
+                                init_guess, 
+                                args=(vol, cov),
+                                method='SLSQP',
+                                constraints=(weights_sum_to_1,), 
+                                bounds=bounds)
+            
+            return weights.x
+
+        elif method == 'rp':
+            target_risk = np.repeat(1/len(target_assets), len(target_assets))
+            
+            def msd_risk(weights, target_risk, cov):
+                port_var = weights.T @ cov @ weights
+                marginal_contribs = cov @ weights
+                risk_contribs = np.multiply(marginal_contribs, weights.T) / port_var
+                w_contribs = risk_contribs
+                return ((w_contribs - target_risk)**2).sum()
+            
+            weights = minimize(msd_risk, 
+                                init_guess,
+                                args=(target_risk, cov), 
+                                method='SLSQP',
+                                constraints=(weights_sum_to_1,),
+                                bounds=bounds)
+            return weights.x
+        
+    def target_assets(self, series: pd.Series) -> pd.Series: 
+        """target_assets: 투자 자산의 티커를 찾는 함수
+
+        Args:
+            series: apply 함수에 사용하기 위해 필요한 변수
+
+        Returns:
+            pd.Series(result, index = target_assets): 
+            result: 최적화에 따른 투자비중
+            index: 투자종목의 티커명
+        """
+        signal = series.loc["total_signal"]
+        present_date = series["index"]
+        tickers = self.add_total_signal.columns.drop('total_signal')
+    
+        if signal:
+            target_assets = series.loc[tickers].sort_values().iloc[-int(signal):].index.tolist()
+            result = self.opt_processing(target_assets, present_date)
+            return pd.Series(result, index = target_assets)
+
+    def run(self) -> pd.DataFrame:
+        """run: apply함수에 target_assets 함수를 적용하는 파트
+
+        Returns:
+            cs_weight: 최적화가 끝난 투자 비중 df
+        """
+        cs_weight = self.add_total_signal.reset_index().apply(self.target_assets, axis=1).fillna(0)
+        cs_weight.index = self.add_total_signal.index
+        cs_weight = cs_weight.iloc[self.param:,]
+        
+        return cs_weight
