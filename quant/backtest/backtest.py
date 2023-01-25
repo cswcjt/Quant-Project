@@ -10,9 +10,9 @@ from typing import *
 
 import yfinance as yf
 
-class PortOptimPy:
+class BackTest:
     # 초기화 함수
-    def __init__(self, price: pd.DataFrame, param: Union[int, str]='weekly'):
+    def __init__(self, price: pd.DataFrame, param: Union[int, str]='weekly', cost=0.0005):
         # 주기에 따른 연율화 패러미터
         annualize_scale_dict = {
             'daily': 252,
@@ -21,11 +21,17 @@ class PortOptimPy:
             'quarterly': 4
         }
         
+        # 포트폴리오 가격테이블
+        self.price: pd.DataFrame = price
+        
         # 연율화 패러미터 (Manual + Periodical)
         self.param: int = annualize_scale_dict[param] if type(param) is str else param
 
         # 일별 수익률
-        self.rets: pd.Series = price.pct_change().dropna()
+        if isinstance(self.price, pd.Series):
+            self.rets: pd.Series = price.pct_change().dropna()
+        elif isinstance(self.price, pd.DataFrame):
+            self.rets: pd.Series = price.sum(axis=1).pct_change().dropna()
 
         # 기대수익률
         self.er = np.array(self.rets * self.param)
@@ -38,7 +44,7 @@ class PortOptimPy:
         self.cov = cov.values.reshape(int(cov.shape[0]/cov.shape[1]), cov.shape[1], cov.shape[1])
 
         # 거래비용
-        self.cost = 0.0005
+        self.cost = cost
     
     # 거래비용 함수
     def transaction_cost(self, weights_df, rets_df, cost=0.0005):
@@ -58,7 +64,7 @@ class PortOptimPy:
         backtest_dict = {}
         
         # 일별 수익률 데이터프레임
-        rets = self.rets
+        rets = self.rets.copy()
         
         # 횡적 배분 모델 선택 및 실행
         for i, index in enumerate(rets.index[self.param-1:]):
@@ -151,6 +157,8 @@ class PortOptimPy:
             port_rets.index = pd.to_datetime(port_rets.index)
             qs.reports.html(port_rets, output='./file-name.html')
 
+    
+
 if __name__ == '__main__':
     def get_etf_price_data():
         tickers = ['XLB', 'XLE', 'XLF', 'XLI', 'XLK', 'XLP', 'XLU', 'XLV', 'XLY']
@@ -159,7 +167,7 @@ if __name__ == '__main__':
         data.drop(['Open', 'High', 'Low', 'Volume'], inplace=True, axis=1)
         data = data.droplevel(0, axis=1)
         data.ffill(inplace=True)
-        df = data.resample('W').last()
+        df = data.resample('D').last()
         return df
 
     df = get_etf_price_data()
