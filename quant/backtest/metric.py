@@ -5,7 +5,7 @@ from itertools import groupby, chain
 
 class Metric:
     def __init__(self, portfolio: Union[pd.DataFrame, pd.Series],
-                 freq: str='day'):
+                 freq: str='month'):
         """Metric class
 
         Args:
@@ -186,12 +186,12 @@ class Metric:
         calmar = calmar.fillna(0) if rolling else calmar
         return calmar
 
-    def VaR(self, returns: pd.Series=None):
+    def VaR(self, returns: pd.Series=None, delta: float=0.01):
         if returns is None:
             rets = self.rets.copy()
         else:
             rets = returns.copy()
-        VaR = rets.quantile(delta)
+        return rets.quantile(delta)
     
     def VaR_ratio(self, returns: pd.Series=None, rolling: bool=False,
                   lookback: int=1, delta: float=0.01) -> Union[pd.Series, float]:
@@ -225,8 +225,7 @@ class Metric:
         if rolling:
             rets = self.rets.rolling(lookback)
         
-        VaR = rets.quantile(delta)
-        ratio = -rets.mean() / VaR
+        ratio = -rets.mean() / self.VaR(rets, delta)
         ratio = ratio.fillna(0) if rolling else ratio
         return ratio
 
@@ -235,9 +234,7 @@ class Metric:
             rets = self.rets
         else:
             rets = returns.copy()
-            
-        VaR = rets.quantile(delta)
-        return rets[rets <= VaR].mean()
+        return rets[rets <= self.VaR(rets, delta)].mean()
 
     def CVar_Ratio(self, returns: pd.Series=None, 
                    rolling: bool=False, lookback: int=1, 
@@ -271,10 +268,10 @@ class Metric:
         
         if rolling:
             rets = rets.rolling(lookback)
-            ratio = -rets.mean() / rets.apply(lambda x: self.calculate_CVaR(x, delta))
+            ratio = -rets.mean() / rets.apply(lambda x: self.CVaR(x, delta))
             ratio = ratio.fillna(0)
         else:
-            ratio = -rets.mean() / self.CVaR(rets)
+            ratio = -rets.mean() / self.CVaR(rets, delta)
             
         return ratio
 
@@ -378,9 +375,16 @@ class Metric:
             rets = returns.copy()
         
         dd = self.drawdown(rets)
-        ddur = list(chain.from_iterable((np.arange(len(list(j))) + 1).tolist()\
-            if i==1 else [0] * len(list(j)) for i, j in groupby(dd != 0)))
-        ddur = pd.Series(ddur, index=dd.index)
+        
+        ddur_count = list(chain.from_iterable((np.arange(len(list(j))) + 1).tolist() if i==1 else [0] * len(list(j)) for i, j in groupby(dd != 0)))
+        ddur_count = pd.Series(ddur_count, index=dd.index)
+        temp_df= ddur_count.reset_index()
+        temp_df.columns = ['date', 'counts']
+        
+        count_0 = temp_df.counts.apply(lambda x: 0 if x > 0 else 1)
+        cumdays = temp_df.date.diff().dt.days.fillna(0).astype(int).cumsum()
+        ddur = cumdays - (count_0 * cumdays).replace(0, np.nan).ffill().fillna(0).astype(int)
+        ddur.index = dd.index
         return ddur
         
     def MDD(self, returns: pd.Series=None) -> float:
