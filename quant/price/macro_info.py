@@ -2,7 +2,7 @@ import pandas as pd
 from fredapi import Fred
 
 def get_econ_info(indicators) : 
-    fred = Fred(api_key='78b31c929aa00cef888d17a4c63cb823')
+    fred = Fred(api_key=)
     temp = []
     for indicator in indicators : 
         target_df = pd.DataFrame({f'{indicator}': fred.get_series(f'{indicator}')})
@@ -12,5 +12,3 @@ def get_econ_info(indicators) :
     econ_df.columns = indicators
 
     return econ_df
-  
-  
