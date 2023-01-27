@@ -3,6 +3,8 @@ import pandas as pd
 from typing import *
 from itertools import groupby, chain
 
+import yfinance as yf
+
 class Metric:
     def __init__(self, portfolio: Union[pd.DataFrame, pd.Series],
                  freq: str='day'):
@@ -19,16 +21,14 @@ class Metric:
         else:
             raise TypeError()
         
-        self.freq2day = self.convert_to_day(freq)
+        self.param = self.annualize_scaler(freq)
+        self.freq2day = int(252 / self.param)
+        
         self.rets = self.portfolio.pct_change().fillna(0)
         self.cum_rets = (1 + self.rets).cumprod()
-        
-        if isinstance(freq, str):
-            self.param = self.annualize_scaler(freq)
-        else:
-            raise TypeError()
     
-    def annualize_scaler(param: str) -> int:
+    def annualize_scaler(self, param: str) -> int:
+        # 주기에 따른 연율화 파라미터 반환해주는 함수
         annualize_scale_dict = {
             'day': 252,
             'week': 52,
@@ -45,26 +45,61 @@ class Metric:
         
         return scale
     
-    def convert_to_day(self, freq: str) -> int:
-        convert_to_days = {
-            'day': 1,
-            'week': 7,
-            'month': 30,
-            'quarter': 90,
-            'half-year': 180,
-            'year': 365
-        }
-        return convert_to_days[freq]
-
-    def calc_lookback(lookback, scale) -> int:
+    def calc_lookback(self, lookback, scale) -> int:
+        # lookback을 주기에 맞게 변환해주는 함수
         if isinstance(lookback, int):
             return lookback * scale
         elif isinstance(lookback, float):
             return int(lookback * scale)
-
-    def sharp_ratio(self, returns: pd.Series=None, 
-                    yearly_rfr: float=0.03, rolling: bool=False,
-                    lookback: int=1) -> Union[pd.Series, float]:
+    
+    def rolling(func):
+        # 옵션 활용을 위한 데코레이터
+        def wrapper(self, returns=None, rolling=False, lookback=1, *args, **kwargs):
+            if returns is None:
+                rets = self.rets.copy()
+            else:
+                try:
+                    rets = returns.copy()
+                except AttributeError:
+                    rets = returns
+            
+            lookback = self.calc_lookback(lookback, self.param)
+            
+            if rolling:
+                rets = rets.rolling(lookback)
+            
+            result = func(self, returns=rets, *args, **kwargs)
+            return result.fillna(0) if isinstance(result, pd.Series) else result
+        return wrapper
+    
+    def external(func):
+        # 옵션 활용을 위한 데코레이터
+        def wrapper(self, returns=None, *args, **kwargs):
+            if returns is None:
+                rets = self.rets.copy()
+            else:
+                try:
+                    rets = returns.copy()
+                except AttributeError:
+                    rets = returns
+            
+            result = func(self, returns=rets, *args, **kwargs)
+            return result
+        return wrapper
+    
+    @external
+    def annualized_return(self, returns: pd.Series=None) -> float:
+        return returns.add(1).prod() ** (self.param / len(returns)) - 1
+    
+    @external
+    def annualized_volatility(self, returns: pd.Series=None) -> float:
+        return returns.std() * np.sqrt(self.param)
+    
+    @rolling
+    def sharp_ratio(self, returns: pd.Series,
+                    rolling: bool=False,
+                    lookback: Union[float, int]=1,
+                    yearly_rfr: float=0.04) -> Union[pd.Series, float]:
         '''Sharp ratio method
 
         Args:
@@ -86,24 +121,13 @@ class Metric:
                 - Series -> (lookback)년 롤링 연율화 샤프지수
                 - float -> 연율화 샤프지수
         '''
-        if rets is None:
-            rets = self.rets.copy()
-        else:
-            rets = returns.copy()
-        
-        lookback = self.calc_lookback(lookback, self.param)
-        
-        if rolling:
-            rets = rets.rolling(lookback)
-            
-        sharp = (rets.mean() * self.param - yearly_rfr)  / (rets.std() * np.sqrt(self.param))
-        sharp = sharp.fillna(0) if rolling else sharp
-        
-        return sharp
-
+        return (self.annualized_return(returns) - yearly_rfr)/self.annualized_volatility(returns)
+    
+    @rolling
     def sortino_ratio(self, returns: pd.Series=None,
-                      yearly_rfr: float=0.03, rolling: bool=False,
-                      lookback: Union[float, int]=1) -> Union[pd.Series, float]:
+                      rolling: bool=False,
+                      lookback: Union[float, int]=1,
+                      yearly_rfr: float=0.03) -> Union[pd.Series, float]:
         """Sortino ratio calculation method
 
         Args:
@@ -125,29 +149,18 @@ class Metric:
                 - Series -> (lookback)년 롤링 연율화 소르티노 지수
                 - float -> 연율화 소르티노 지수
         """
-        def downside_deviation(rets):
-            rets_copy = rets.copy()
-            rets_copy[rets_copy >= 0] = 0
-            return rets_copy.std()
+        def downside_std(returns):
+            returns[returns >= 0] = 0
+            return returns.std() * np.sqrt(self.param)
         
-        if rets is None:
-            rets = self.rets.copy()
-        else:
-            rets = returns.copy()
-        
-        lookback: int = self.calc_lookback(lookback, self.param)
-        
-        if rolling:
-            rets = rets.rolling(lookback)
-        
-        dev = rets.apply(downside_deviation) * np.sqrt(self.param)
-        
-        sortino = (rets.mean() * self.param - yearly_rfr) / dev
-        sortino = sortino.fillna(0) if rolling else sortino
-        return sortino
+        return self.annualized_return(returns) - yearly_rfr / downside_std(returns)
 
-    def calmar_ratio(self, returns: pd.Series=None, rolling: bool=False, 
-                     lookback: Union[float, int]=1, MDD_lookback: Union[float, int]=3) -> Union[pd.Series, float]:
+    @rolling
+    def calmar_ratio(self, returns: pd.Series=None,
+                     rolling: bool=False,
+                     lookback: Union[float, int]=1,
+                     MDD_lookback: Union[float, int]=3
+                     ) -> Union[pd.Series, float]:
         '''Calmar ratio calculation method
         
         Args:
@@ -169,32 +182,23 @@ class Metric:
                 - Series -> (lookback)년 롤링 연율화 칼머 지수
                 - float -> 연율화 칼머 지수
         '''
-        dd = self.price / self.price.cummax() - 1
-        if rets is None:
-            rets = self.rets.copy()
-        else:
-            rets = returns.copy()
-        
-        lookback: int = self.calc_lookback(lookback, self.param)
+        dd = self.drawdown(returns)
         MDD_lookback = self.calc_lookback(MDD_lookback, self.param)
         
         if rolling:
-            rets = rets.rolling(lookback)
             dd = dd.rolling(MDD_lookback)
         
-        calmar = - rets.mean() * self.param / dd.min()
-        calmar = calmar.fillna(0) if rolling else calmar
+        calmar = - self.annualized_return(returns) / dd.min()
         return calmar
-
-    def VaR(self, returns: pd.Series=None):
-        if returns is None:
-            rets = self.rets.copy()
-        else:
-            rets = returns.copy()
-        VaR = rets.quantile(delta)
     
-    def VaR_ratio(self, returns: pd.Series=None, rolling: bool=False,
-                  lookback: int=1, delta: float=0.01) -> Union[pd.Series, float]:
+    @external
+    def VaR(self, returns: pd.Series=None, delta: float=0.01):
+        return returns.quantile(delta)
+    
+    @rolling
+    def VaR_ratio(self, returns: pd.Series=None, 
+                  rolling: bool=False, lookback: int=1,
+                  delta: float=0.01) -> Union[pd.Series, float]:
         """VaR ratio calculation method
 
         Args:
@@ -216,30 +220,15 @@ class Metric:
                 - Series -> (lookback)년 롤링 연율화 VaR 지수
                 - float -> 연율화 VaR 지수
         """
-        if returns is None:
-            rets = self.rets.copy()
-        else:
-            rets = returns.copy()
-        lookback: int = self.calc_lookback(lookback, self.param)
-        
-        if rolling:
-            rets = self.rets.rolling(lookback)
-        
-        VaR = rets.quantile(delta)
-        ratio = -rets.mean() / VaR
-        ratio = ratio.fillna(0) if rolling else ratio
+        ratio = -returns.mean() / self.VaR(returns, delta=delta)
         return ratio
 
+    @external
     def CVaR(self, returns: pd.Series=None, delta=0.01):
-        if returns is None:
-            rets = self.rets
-        else:
-            rets = returns.copy()
-            
-        VaR = rets.quantile(delta)
-        return rets[rets <= VaR].mean()
+        return returns[returns <= self.VaR(returns, delta=delta)].mean()
 
-    def CVar_Ratio(self, returns: pd.Series=None, 
+    @rolling
+    def CVaR_ratio(self, returns: pd.Series=None, 
                    rolling: bool=False, lookback: int=1, 
                    delta=0.01) -> Union[pd.Series, float]:
         """CVaR ratio calculation method
@@ -263,21 +252,14 @@ class Metric:
                 - Series -> (lookback)년 롤링 연율화 CVaR 지수
                 - float -> 연율화 CVaR 지수
         """
-        if returns is None:
-            rets = self.rets
-        else:
-            rets = returns.copy()
-        lookback: int = self.calc_lookback(lookback, self.param)
-        
         if rolling:
-            rets = rets.rolling(lookback)
-            ratio = -rets.mean() / rets.apply(lambda x: self.calculate_CVaR(x, delta))
-            ratio = ratio.fillna(0)
+            ratio = -returns.mean() / returns.apply(lambda x: self.CVaR(x, delta=delta))
         else:
-            ratio = -rets.mean() / self.CVaR(rets)
+            ratio = -returns.mean() / self.CVaR(returns, delta=delta)
             
         return ratio
 
+    @rolling
     def hit_ratio(self, returns: pd.Series=None,
                   rolling: bool=False, lookback: int=1,
                   delta=0.01) -> Union[pd.Series, float]:
@@ -303,21 +285,9 @@ class Metric:
                 - float -> 연율화 HR
         """
         hit = lambda rets: len(rets[rets > 0.0]) / len(rets[rets != 0.0])
-        
-        if returns is None:
-            rets = self.rets
-        else:
-            rets = returns.copy()
-        lookback: int = self.calc_lookback(lookback, self.param)
-        
-        if rolling:
-            rets = rets.rolling(lookback)
-            ratio = rets.apply(hit)
-        else:
-            ratio = hit(rets)
-            
-        return ratio
+        return returns.apply(hit) if rolling else hit(returns)
 
+    @rolling
     def GtP_ratio(self, returns: pd.Series=None,
                   rolling: bool=False, lookback: int=1,
                   delta=0.01) -> Union[pd.Series, float]:
@@ -343,53 +313,61 @@ class Metric:
                 - float -> 연율화 GPR
         """
         GPR = lambda rets: rets[rets > 0.0].mean() / -rets[rets < 0.0].mean()
-        
-        if returns is None:
-            rets = self.rets
-        else:
-            rets = returns.copy()
-        lookback: int = self.calc_lookback(lookback, self.param)
-        
-        if rolling:
-            rets = rets.rolling(lookback)
-            ratio = rets.apply(GPR)
-        else:
-            ratio = GPR(rets)
-        return ratio
+        return returns.apply(GPR) if rolling else GPR(returns)
     
-    def skewness(self):
+    @external
+    def skewness(self, returns: pd.Series=None) -> float:
+        # skewness 계산 메서드
         return self.rets.skew()
     
-    def kurtosis(self):
+    @external
+    def kurtosis(self, returns: pd.Series=None) -> float:
+        # kurtosis 계산 메서드
         return self.rets.kurtosis()
     
+    @external
     def drawdown(self, returns: pd.Series=None) -> pd.Series:
-        if returns is None:
-            cum_rets = self.cum_rets
-        else:
-            cum_rets = (1 + returns).cumprod()
-            
+        """기간내 최고점 대비 수익하락율(drawdown) 계산 메서드
+
+        Args:
+            returns (pd.Series, optional): 시간에 따른 수익률 리스트(Series). Defaults to None.
+
+        Returns:
+            - pd.Series: 주기에 따른 drawdown 리스트(Series)
+        """
+        cum_rets = (1 + returns).cumprod()
         return cum_rets.div(cum_rets.cummax()).sub(1)
     
+    @external
     def drawdown_duration(self, returns: pd.Series=None) -> pd.Series:
-        if returns is None:
-            rets = self.rets
-        else:
-            rets = returns.copy()
         
-        dd = self.drawdown(rets)
-        ddur = list(chain.from_iterable((np.arange(len(list(j))) + 1).tolist()\
-            if i==1 else [0] * len(list(j)) for i, j in groupby(dd != 0)))
-        ddur = pd.Series(ddur, index=dd.index)
+        """drawdown 지속기간 계산 메서드(일 단위)
+
+        Args:
+            returns (pd.Series, optional): 시간에 따른 수익률 리스트(Series). Defaults to None.
+
+        Returns:
+            - pd.Series: 주기에 따른 drawdown 지속시간 리스트(Series, 일 단위)
+        """
+        dd = self.drawdown(returns=returns)
+        
+        ddur_count = list(chain.from_iterable((np.arange(len(list(j))) + 1).tolist() if i==1 else [0] * len(list(j)) for i, j in groupby(dd != 0)))
+        ddur_count = pd.Series(ddur_count, index=dd.index)
+        temp_df= ddur_count.reset_index()
+        temp_df.columns = ['date', 'counts']
+        
+        count_0 = temp_df.counts.apply(lambda x: 0 if x > 0 else 1)
+        cumdays = temp_df.date.diff().dt.days.fillna(0).astype(int).cumsum()
+        ddur = cumdays - (count_0 * cumdays).replace(0, np.nan).ffill().fillna(0).astype(int)
+        ddur.index = dd.index
         return ddur
-        
+    
+    @external
     def MDD(self, returns: pd.Series=None) -> float:
-        if returns is None:
-            cum_rets = self.cum_rets
-        else:
-            cum_rets = (1 + returns).cumprod()
-        return cum_rets.div(cum_rets.cummax()).sub(1).min()
-        
+        # MDD 계산 메서드
+        return self.drawdown(returns).min()
+    
+    @external
     def MDD_duration(self, returns: pd.Series=None) -> float:
         """MDD 지속기간 계산 메서드
 
@@ -405,5 +383,50 @@ class Metric:
     def get_rets(self):
         return self.rets
     
-    def get_cumulat_rets(self):
-        return self.cum_rets
+    def total_returns(self, returns: pd.Series=None) -> float:
+        return (1 + returns).prod()
+    
+    @external
+    def print_report(self, returns: pd.Series=None, delta: float=0.01):
+        print(f'Annualized Return: {self.annualized_return(returns):.2%}')
+        print(f'Annualized Volatility: {self.annualized_volatility(returns):.2%}')
+        print(f'Skewness: {self.skewness(returns):.2f}')
+        print(f'Kurtosis: {self.kurtosis(returns):.2f}')
+        print(f'Max Drawdown: {self.MDD(returns):.2%}')
+        print(f'Max Drawdown Duration: {self.MDD_duration(returns):.0f} days')
+        print(f'Annualized Sharp Ratio: {self.sharp_ratio(returns):.2f}')
+        print(f'Annualized Sortino Ratio: {self.sortino_ratio(returns):.2f}')
+        print(f'Annualized Calmar Ratio: {self.calmar_ratio(returns):.2f}')
+        print(f'Annualized VaR: {self.VaR(returns, delta=delta):.2f}')
+        print(f'Annualized VaR Ratio: {self.VaR_ratio(returns, delta=delta):.2f}')
+        print(f'Annualized CVaR: {self.CVaR(returns, delta=delta):.2f}')
+        print(f'Annualized CVaR Ratio: {self.CVaR_ratio(returns, delta=delta):.2f}')
+        print(f'Annualized hit Ratio: {self.hit_ratio(returns, delta=delta):.2f}')
+        print(f'Annualized GtP Ratio: {self.GtP_ratio(returns, delta=delta):.2f}')
+    
+    @external
+    def rolling_metric_report(self, returns: pd.Series=None,
+                              lookback: Union[float, int]=1, delta: float=0.01):
+        rolling = True
+        
+        dd = self.drawdown(returns)
+        ddur = self.drawdown_duration(returns)
+        sharp = self.sharp_ratio(returns, rolling=rolling, lookback=lookback)
+        sortino = self.sortino_ratio(returns, rolling=rolling, lookback=lookback)
+        calmar = self.calmar_ratio(returns, rolling=rolling, lookback=lookback)
+        VaR = self.VaR(returns, delta=delta)
+        VaR_ratio = self.VaR_ratio(returns, rolling=rolling,
+                                   lookback=lookback, delta=delta)
+        CVaR = self.CVaR(returns, delta=delta)
+        CVaR_ratio = self.CVaR_ratio(returns, rolling=rolling,
+                                     lookback=lookback, delta=delta)
+        hit = self.hit_ratio(returns, rolling=rolling,
+                             lookback=lookback, delta=delta)
+        GtP = self.GtP_ratio(returns, rolling=rolling,
+                             lookback=lookback, delta=delta)
+        
+if __name__ == '__main__':
+    data = yf.download('SPY TLT', start='2002-07-30')['Adj Close']
+    test = Metric(data)
+    test.print_report()
+    test.rolling_metric_report()
