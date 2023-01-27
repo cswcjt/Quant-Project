@@ -12,20 +12,22 @@ import yfinance as yf
 
 class BackTest:
     # 초기화 함수
-    def __init__(self, price: pd.DataFrame, param: Union[int, str]='weekly', cost=0.0005):
+    def __init__(self, price: pd.DataFrame, param: Union[int, str]='day', cost=0.0005):
         # 주기에 따른 연율화 패러미터
         annualize_scale_dict = {
-            'daily': 252,
-            'weekly': 52,
-            'monthly': 12,
-            'quarterly': 4
+            'day': 252,
+            'week': 52,
+            'month': 12,
+            'quarter': 4,
+            'half-year': 2,
+            'year': 1,
         }
         
         # 포트폴리오 가격테이블
         self.price: pd.DataFrame = price
         
         # 연율화 패러미터 (Manual + Periodical)
-        self.param: int = annualize_scale_dict[param] if type(param) is str else param
+        self.param: int = annualize_scale_dict[param] if isinstance(param, str) else param
 
         # 일별 수익률
         if isinstance(self.price, pd.Series):
@@ -116,7 +118,7 @@ class BackTest:
         # 최종 포트폴리오 자산별 수익률
         port_asset_rets = port_weights.shift() * rets - cost
 
-        # 최종 포트폴리오 수익률 
+        # 최종 포트폴리오 수익률
         port_rets = port_asset_rets.sum(axis=1)
         port_rets.index = pd.to_datetime(port_rets.index).strftime("%Y-%m-%d")
 
@@ -157,8 +159,6 @@ class BackTest:
             port_rets.index = pd.to_datetime(port_rets.index)
             qs.reports.html(port_rets, output='./file-name.html')
 
-    
-
 if __name__ == '__main__':
     def get_etf_price_data():
         tickers = ['XLB', 'XLE', 'XLF', 'XLI', 'XLK', 'XLP', 'XLU', 'XLV', 'XLY']
@@ -171,7 +171,7 @@ if __name__ == '__main__':
         return df
 
     df = get_etf_price_data()
-    
+
     # 엔진 초기화
     engine = BackTest(df)
     
