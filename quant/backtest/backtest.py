@@ -173,7 +173,7 @@ if __name__ == '__main__':
     df = get_etf_price_data()
     
     # 엔진 초기화
-    engine = PortOptimPy(df)
+    engine = BackTest(df)
     
     # 백테스팅 실행
     res = engine.run(cs_model='RP', ts_model='VT', cost=0.0005)
