@@ -89,7 +89,10 @@ class Metric:
     
     @external
     def annualized_return(self, returns: pd.Series=None) -> float:
-        return returns.add(1).prod() ** (self.param / len(returns)) - 1
+        try:
+            return returns.add(1).prod() ** (self.param / len(returns)) - 1
+        except AttributeError:
+            return returns.apply(lambda x: self.annualized_return(x))
     
     @external
     def annualized_volatility(self, returns: pd.Series=None) -> float:
@@ -150,8 +153,11 @@ class Metric:
                 - float -> 연율화 소르티노 지수
         """
         def downside_std(returns):
-            returns[returns >= 0] = 0
-            return returns.std() * np.sqrt(self.param)
+            try:
+                returns[returns >= 0] = 0
+                return returns.std() * np.sqrt(self.param)
+            except TypeError:
+                return returns.apply(lambda x: downside_std(x))
         
         return self.annualized_return(returns) - yearly_rfr / downside_std(returns)
 
@@ -335,8 +341,11 @@ class Metric:
         Returns:
             - pd.Series: 주기에 따른 drawdown 리스트(Series)
         """
-        cum_rets = (1 + returns).cumprod()
-        return cum_rets.div(cum_rets.cummax()).sub(1)
+        try:
+            cum_rets = (1 + returns).cumprod()
+            return cum_rets.div(cum_rets.cummax()).sub(1)
+        except TypeError:
+            return returns.apply(lambda x: (1+x).cumprod().div((1+x).cumprod().cummax()).sub(1))
     
     @external
     def drawdown_duration(self, returns: pd.Series=None) -> pd.Series:
