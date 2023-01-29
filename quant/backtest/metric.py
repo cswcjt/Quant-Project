@@ -1,9 +1,12 @@
+import matplotlib.pyplot as plt
 import numpy as np
+import seaborn as sns
 import pandas as pd
-from typing import *
-from itertools import groupby, chain
-
 import yfinance as yf
+
+from itertools import groupby, chain
+from typing import Union
+
 
 class Metric:
     def __init__(self, portfolio: Union[pd.DataFrame, pd.Series],
@@ -69,7 +72,7 @@ class Metric:
                 rets = rets.rolling(lookback)
             
             result = func(self, returns=rets, *args, **kwargs)
-            return result.fillna(0) if isinstance(result, pd.Series) else result
+            return result
         return wrapper
     
     def external(func):
@@ -272,8 +275,8 @@ class Metric:
 
     @external
     def hit_ratio(self, returns: pd.Series=None,
-                  rolling: bool=False, lookback: int=1,
-                  delta=0.01) -> Union[pd.Series, float]:
+                  rolling: bool=False, lookback: int=1
+                  ) -> Union[pd.Series, float]:
         """Hit ratio calculation method
 
         Args:
@@ -301,8 +304,8 @@ class Metric:
 
     @external
     def GtP_ratio(self, returns: pd.Series=None,
-                  rolling: bool=False, lookback: int=1,
-                  delta=0.01) -> Union[pd.Series, float]:
+                  rolling: bool=False, lookback: int=1
+                  ) -> Union[pd.Series, float]:
         """Gain-to-Pain ratio(GPR) calculation method
 
         Args:
@@ -417,32 +420,78 @@ class Metric:
         print(f'Annualized VaR Ratio: {self.VaR_ratio(returns, delta=delta):.2f}')
         print(f'Annualized CVaR: {self.CVaR(returns, delta=delta):.2f}')
         print(f'Annualized CVaR Ratio: {self.CVaR_ratio(returns, delta=delta):.2f}')
-        print(f'Annualized hit Ratio: {self.hit_ratio(returns, delta=delta):.2f}')
-        print(f'Annualized GtP Ratio: {self.GtP_ratio(returns, delta=delta):.2f}')
+        print(f'Annualized hit Ratio: {self.hit_ratio(returns):.2f}')
+        print(f'Annualized GtP Ratio: {self.GtP_ratio(returns):.2f}')
+        
+    def numeric_metric(self, returns: pd.Series=None,
+                       delta: float=0.01, dict: bool=True) -> Union[dict, pd.Series]:
+        result = {'Annualized Return': self.annualized_return(returns),
+                  'Annualized Volatility': self.annualized_volatility(returns),
+                  'Skewness': self.skewness(returns),
+                  'Kurtosis': self.kurtosis(returns),
+                  'Max Drawdown': self.MDD(returns),
+                  'Max Drawdown Duration': self.MDD_duration(returns),
+                  'Annualized Sharp Ratio': self.sharp_ratio(returns),
+                  'Annualized Sortino Ratio': self.sortino_ratio(returns),
+                  'Annualized Calmar Ratio': self.calmar_ratio(returns),
+                  'Annualized VaR': self.VaR(returns, delta=delta),
+                  'Annualized VaR Ratio': self.VaR_ratio(returns, delta=delta),
+                  'Annualized CVaR': self.CVaR(returns, delta=delta),
+                  'Annualized CVaR Ratio': self.CVaR_ratio(returns, delta=delta),
+                  'Annualized hit Ratio': self.hit_ratio(returns),
+                  'Annualized GtP Ratio': self.GtP_ratio(returns)}
+        return result if dict else pd.Series(result)
     
-    @external
-    def rolling_metric_report(self, returns: pd.Series=None,
-                              lookback: Union[float, int]=1, delta: float=0.01):
+    def rolling_metric(self, returns: pd.Series=None,
+                              lookback: Union[float, int]=1,
+                              MDD_lookback: Union[float, int]=3,
+                              delta: float=0.01) -> pd.DataFrame:
         rolling = True
         
         dd = self.drawdown(returns)
         ddur = self.drawdown_duration(returns)
         sharp = self.sharp_ratio(returns, rolling=rolling, lookback=lookback)
         sortino = self.sortino_ratio(returns, rolling=rolling, lookback=lookback)
-        calmar = self.calmar_ratio(returns, rolling=rolling, lookback=lookback)
+        calmar = self.calmar_ratio(returns, rolling=rolling, 
+                                   lookback=lookback, MDD_lookback=MDD_lookback)
         VaR = self.VaR(returns, delta=delta)
         VaR_ratio = self.VaR_ratio(returns, rolling=rolling,
                                    lookback=lookback, delta=delta)
         CVaR = self.CVaR(returns, delta=delta)
         CVaR_ratio = self.CVaR_ratio(returns, rolling=rolling,
                                      lookback=lookback, delta=delta)
-        hit = self.hit_ratio(returns, rolling=rolling,
-                             lookback=lookback, delta=delta)
-        GtP = self.GtP_ratio(returns, rolling=rolling,
-                             lookback=lookback, delta=delta)
+        hit = self.hit_ratio(returns, rolling=rolling, lookback=lookback)
+        GtP = self.GtP_ratio(returns, rolling=rolling, lookback=lookback)
+        
+        result = pd.concat([dd, ddur, sharp, sortino, calmar,
+                            VaR_ratio, CVaR_ratio, hit, GtP], axis=1)
+        result.columns = ['dd', 'ddur', 'sharp', 'sortino', 'calmar',
+                          'VaR_ratio', 'CVaR_ratio', 'hit', 'GtP']
+        return result
+    
+    def plot_report(self, returns: pd.Series=None,
+                    lookback: Union[float, int]=1,
+                    MDD_lookback: Union[float, int]=3,
+                    delta: float=0.01) -> None:
+        
+        report = self.rolling_metric(returns=returns, lookback=lookback,
+                                     MDD_lookback=MDD_lookback, delta=delta)
+        
+        _, ax = plt.subplots(4, 2, figsize=(8, 16))
+        plt.subplots_adjust(wspace=0.3, hspace=0.2)
+        
+        sns.lineplot(data=report, x='Date', y='dd', ax=ax[0][0])
+        sns.lineplot(data=report, x='Date', y='ddur', ax=ax[0][1])
+        sns.lineplot(data=report, x='Date', y='sharp', ax=ax[1][0])
+        sns.lineplot(data=report, x='Date', y='calmar', ax=ax[1][1])
+        sns.lineplot(data=report, x='Date', y='VaR_ratio', ax=ax[2][0])
+        sns.lineplot(data=report, x='Date', y='CVaR_ratio', ax=ax[2][1])
+        sns.lineplot(data=report, x='Date', y='hit', ax=ax[3][0])
+        sns.lineplot(data=report, x='Date', y='GtP', ax=ax[3][1])
+        plt.show()
         
 if __name__ == '__main__':
     data = yf.download('SPY TLT', start='2002-07-30')['Adj Close']
     test = Metric(data)
     test.print_report()
-    test.rolling_metric_report()
+    test.rolling_metric()
