@@ -9,6 +9,7 @@ quant/backtest/test.ipynb
 
 ### dataset directory ###
 data/
+quant/dask-tutorial.ipynb
 
 ### JupyterNotebooks ###
 # gitignore template for Jupyter Notebooks
