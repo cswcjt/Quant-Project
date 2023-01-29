@@ -161,7 +161,7 @@ class Metric:
         
         return self.annualized_return(returns) - yearly_rfr / downside_std(returns)
 
-    @rolling
+    @external
     def calmar_ratio(self, returns: pd.Series=None,
                      rolling: bool=False,
                      lookback: Union[float, int]=1,
@@ -189,9 +189,11 @@ class Metric:
                 - float -> 연율화 칼머 지수
         '''
         dd = self.drawdown(returns)
+        lookback = self.calc_lookback(lookback, self.param)
         MDD_lookback = self.calc_lookback(MDD_lookback, self.param)
         
         if rolling:
+            returns = returns.rolling(lookback)
             dd = dd.rolling(MDD_lookback)
         
         calmar = - self.annualized_return(returns) / dd.min()
@@ -231,7 +233,10 @@ class Metric:
 
     @external
     def CVaR(self, returns: pd.Series=None, delta=0.01):
-        return returns[returns <= self.VaR(returns, delta=delta)].mean()
+        try:
+            return returns[returns <= self.VaR(returns, delta=delta)].mean()
+        except TypeError:
+            return returns.apply(lambda x: self.CVaR(x))
 
     @rolling
     def CVaR_ratio(self, returns: pd.Series=None, 
@@ -265,7 +270,7 @@ class Metric:
             
         return ratio
 
-    @rolling
+    @external
     def hit_ratio(self, returns: pd.Series=None,
                   rolling: bool=False, lookback: int=1,
                   delta=0.01) -> Union[pd.Series, float]:
@@ -291,9 +296,10 @@ class Metric:
                 - float -> 연율화 HR
         """
         hit = lambda rets: len(rets[rets > 0.0]) / len(rets[rets != 0.0])
-        return returns.apply(hit) if rolling else hit(returns)
+        lookback = self.calc_lookback(lookback, self.param)
+        return returns.rolling(lookback).apply(hit) if rolling else hit(returns)
 
-    @rolling
+    @external
     def GtP_ratio(self, returns: pd.Series=None,
                   rolling: bool=False, lookback: int=1,
                   delta=0.01) -> Union[pd.Series, float]:
@@ -319,7 +325,8 @@ class Metric:
                 - float -> 연율화 GPR
         """
         GPR = lambda rets: rets[rets > 0.0].mean() / -rets[rets < 0.0].mean()
-        return returns.apply(GPR) if rolling else GPR(returns)
+        lookback = self.calc_lookback(lookback, self.param)
+        return returns.rolling(lookback).apply(GPR) if rolling else GPR(returns)
     
     @external
     def skewness(self, returns: pd.Series=None) -> float:
@@ -345,7 +352,7 @@ class Metric:
             cum_rets = (1 + returns).cumprod()
             return cum_rets.div(cum_rets.cummax()).sub(1)
         except TypeError:
-            return returns.apply(lambda x: (1+x).cumprod().div((1+x).cumprod().cummax()).sub(1))
+            return returns.apply(self.drawdown)
     
     @external
     def drawdown_duration(self, returns: pd.Series=None) -> pd.Series:
