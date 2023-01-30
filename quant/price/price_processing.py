@@ -122,7 +122,7 @@ def price_on_rebal(price: pd.DataFrame, rebal_dates: list) -> pd.DataFrame:
     price_on_rebal = price.loc[rebal_dates, :]
     return price_on_rebal
 
-def calculate_portvals(price_df: pd.DataFrame, weight_df: pd.DataFrame) -> pd.DataFrame:
+def port_daily_rets(price_df: pd.DataFrame, weight_df: pd.DataFrame, signal_df: pd.DataFrame) -> pd.DataFrame:
     """calculate_portvals
 
     Args:
@@ -130,73 +130,30 @@ def calculate_portvals(price_df: pd.DataFrame, weight_df: pd.DataFrame) -> pd.Da
         - DataFrame -> 일별 종가를 담고 있는 df
         weight_df (pd.DataFrame): 
         - DataFrame -> 팩터, 최적화가 끝난 최종 투자비중 df
+        signal_df (pd.DataFrame):
+        - DataFrame -> 투자 자산과 롱숏인지 구분하기 위한 시그널 df
 
     Returns:
         pd.DataFrame -> 일별 가격의 변동에 따른 최종 투자비중의 일별 변동 => 포트폴리오에 담긴 자산별 가치의 변화를 보여줌 
     """
 
-    cum_rtn_up_until_now = 1 
     individual_port_val_df_list = []
     prev_end_day = weight_df.index[0]
     
     for end_day in weight_df.index[1:]:
         sub_price_df = price_df.loc[prev_end_day:end_day]
-        sub_asset_flow_df = sub_price_df/sub_price_df.iloc[0]
+        signal_series = signal_df.loc[prev_end_day]
+        sub_rets_df = sub_price_df.pct_change() * signal_series
 
         weight_series = weight_df.loc[prev_end_day]
-        indi_port_cum_rtn_series = (sub_asset_flow_df*weight_series)*cum_rtn_up_until_now
+        port_rets_series = (sub_rets_df * weight_series)
     
-        individual_port_val_df_list.append(indi_port_cum_rtn_series)
-
-        total_port_cum_rtn_series = indi_port_cum_rtn_series.sum(axis=1)
-        cum_rtn_up_until_now = total_port_cum_rtn_series.iloc[-1]
+        individual_port_val_df_list.append(port_rets_series)
 
         prev_end_day = end_day 
 
     individual_port_val_df = reduce(lambda x, y: pd.concat([x, y.iloc[1:]]), individual_port_val_df_list)
     return individual_port_val_df
 
-def get_daily_rets(individual_port_val_df: pd.DataFrame, N: int=1, log: bool=False) -> pd.DataFrame:
-    """get_daily_rets
-
-    Args:
-        individual_port_val_df (pd.DataFrame): 
-            - DataFrame -> culate_portvals의 리턴 값으로 일별 투자비중의 변동을 나타내는 df
-        N (int): 
-            - int: 수익률을 구하기 위한 look-back window -> default=1
-        log (bool): 
-            - bool: 로그 수익률을 사용할지 결정 -> default=False
-
-    Returns:
-        pd.DataFrame -> 포트폴리오의 일별 수익룰 df
-    """
-
-    portval_df = individual_port_val_df.sum(axis=1)
-    
-    if log:
-        return np.log(portval_df/portval_df.shift(N)).iloc[N-1:].fillna(0)
-    
-    else:
-        return portval_df.pct_change(N, fill_method=None).iloc[N-1:].fillna(0)
-
-def get_cum_rets(daily_return_df: pd.DataFrame, log: bool=False) -> pd.DataFrame:
-    """get_cum_returns
-
-    Args:
-        daily_return_df (pd.DataFrame): 
-            - DataFrame -> get_returns의 리턴 값으로 포트폴리오의 일별 수익률 df
-        log (bool): 
-            - bool: 로그 수익률을 사용할지 결정 -> default=False
-
-    Returns:
-        pd.DataFrame -> 포트폴리오의 누적수익룰 df
-    """
-    
-    if log:
-        return np.exp(daily_return_df.cumsum())
-    
-    else:
-        
-        # same with (return_df.cumsum() + 1)
-        return (1 + daily_return_df).cumprod()   
-
+def port_cum_rets(port_daily_rets):
+    return (1 + port_daily_rets.sum(axis=1)).cumprod()
