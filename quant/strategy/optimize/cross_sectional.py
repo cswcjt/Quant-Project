@@ -68,11 +68,9 @@ class Equalizer:
             weights: 시그널을 무시하고 모든 자산에 동일한 비중으로 투자할 때의 weight df -> 벤치마크로 사용하기 위해 만듬
             밑에서 부터는 시그널이 존재하는 자산에만 비중을 산출하는 방법론들임
         """
-        weights = self.signal.copy()
-        weights.iloc[:] = 1 / self.noa
-        
-        weights = self.eps(weights)
-
+    
+        weights = self.signal.replace({0: 1/self.noa, 1: 1/self.noa})
+    
         return weights
     
     # EW(동일 비중 가중치 계산 함수)
