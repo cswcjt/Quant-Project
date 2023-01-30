@@ -481,13 +481,21 @@ class Metric:
         plt.subplots_adjust(wspace=0.3, hspace=0.2)
         
         sns.lineplot(data=report, x='Date', y='dd', ax=ax[0][0])
+        ax[0][0].title('Drawdown')
         sns.lineplot(data=report, x='Date', y='ddur', ax=ax[0][1])
+        ax[0][1].title('Drawdown Duration')
         sns.lineplot(data=report, x='Date', y='sharp', ax=ax[1][0])
+        ax[1][0].title('1-year Sharp Ratio')
         sns.lineplot(data=report, x='Date', y='calmar', ax=ax[1][1])
+        ax[1][1].title('1-year Calmar Ratio')
         sns.lineplot(data=report, x='Date', y='VaR_ratio', ax=ax[2][0])
+        ax[2][0].title('1-year VaR Ratio')
         sns.lineplot(data=report, x='Date', y='CVaR_ratio', ax=ax[2][1])
+        ax[2][1].title('1-year CVaR Ratio')
         sns.lineplot(data=report, x='Date', y='hit', ax=ax[3][0])
+        ax[3][0].title('1-year hit Ratio')
         sns.lineplot(data=report, x='Date', y='GtP', ax=ax[3][1])
+        ax[4][1].title('1-year GtP Ratio')
         plt.show()
         
 if __name__ == '__main__':
