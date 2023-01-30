@@ -1,8 +1,9 @@
 # !pip install yfinance --quiet
-
+import time
 import yfinance as yf
 import pandas as pd
 import numpy as np
+from functools import reduce
 
 def get_price(tickers: list, period: str, interval: str, start_date: str=None) -> pd.DataFrame:
     """Download Price Data
@@ -18,25 +19,35 @@ def get_price(tickers: list, period: str, interval: str, start_date: str=None) -
         start_date (str, optional): 
             - str -> period 인자를 사용하지 않을 경우 데이터의 시작일을 설정합니다. 'YYYY-MM-DD' 문자열을 사용하거나 datetime 형식의 날짜를 사용
             - None -> 종목의 역사적 시작날짜를 기본값으로 사용 
+        financial_infos (str):
+            - str -> 재무정보 필요하면 yf의 history 메서드 사용
+            - None -> 종가만 필요한 경우 yf의 download 메서드 사용
 
     Returns:
         pd.DataFrame -> 금융상품 가격정보를 담고있는 df
     """
     
     temp = []
+    
     for ticker in tickers:
+        #start = time.time()
         name = f'{ticker}'
         name = yf.Ticker(ticker)
         temp_df = name.history(start=start_date, period=period, interval=interval)['Close']
         temp.append(temp_df)
-    
+        #end = time.time()
+        #print(f'loop time: {end - start}s')
+            
     price_df = pd.concat(temp, axis = 1)
     price_df.columns = tickers
-    
+
     if interval in ['1d', '5d', '1wk', '1mo', '3mo']:
-        price_df.index = pd.to_datetime(price_df.index.date)
+        price_df.index = pd.to_datetime(price_df.index).date
     
-    price_df.dropna(inplace=True)
+    #price_df.dropna(inplace=True, axis=0)
+    nan_cols = price_df.columns[price_df.isna().any()]
+    #print(nan_cols)
+    price_df.dropna(axis=0, inplace=True)
 
     return price_df
 
@@ -63,7 +74,6 @@ def add_cash(price: pd.DataFrame, num_day_in_year:int, yearly_rfr: int) -> pd.Da
     temp_df.index.name = "date_time"
 
     return temp_df
-
 
 def rebal_dates(price: pd.DataFrame, period: str) -> list:
     """Select Rebalancing Period 
@@ -112,10 +122,6 @@ def price_on_rebal(price: pd.DataFrame, rebal_dates: list) -> pd.DataFrame:
     price_on_rebal = price.loc[rebal_dates, :]
     return price_on_rebal
 
-import pandas as pd
-import numpy as np
-from functools import reduce
-
 def calculate_portvals(price_df: pd.DataFrame, weight_df: pd.DataFrame) -> pd.DataFrame:
     """calculate_portvals
 
@@ -128,7 +134,7 @@ def calculate_portvals(price_df: pd.DataFrame, weight_df: pd.DataFrame) -> pd.Da
     Returns:
         pd.DataFrame -> 일별 가격의 변동에 따른 최종 투자비중의 일별 변동 => 포트폴리오에 담긴 자산별 가치의 변화를 보여줌 
     """
- 
+
     cum_rtn_up_until_now = 1 
     individual_port_val_df_list = []
     prev_end_day = weight_df.index[0]
@@ -149,7 +155,6 @@ def calculate_portvals(price_df: pd.DataFrame, weight_df: pd.DataFrame) -> pd.Da
 
     individual_port_val_df = reduce(lambda x, y: pd.concat([x, y.iloc[1:]]), individual_port_val_df_list)
     return individual_port_val_df
-
 
 def get_daily_rets(individual_port_val_df: pd.DataFrame, N: int=1, log: bool=False) -> pd.DataFrame:
     """get_daily_rets
@@ -173,7 +178,6 @@ def get_daily_rets(individual_port_val_df: pd.DataFrame, N: int=1, log: bool=Fal
     
     else:
         return portval_df.pct_change(N, fill_method=None).iloc[N-1:].fillna(0)
-
 
 def get_cum_rets(daily_return_df: pd.DataFrame, log: bool=False) -> pd.DataFrame:
     """get_cum_returns
