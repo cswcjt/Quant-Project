@@ -478,6 +478,7 @@ class Metric:
         
         report = self.rolling_metric(returns=returns, lookback=lookback,
                                      MDD_lookback=MDD_lookback, delta=delta)
+        report.reset_index(inplace=True, names=['Date'])
         
         _, ax = plt.subplots(4, 2, figsize=(8, 16))
         plt.subplots_adjust(wspace=0.3, hspace=0.2)
