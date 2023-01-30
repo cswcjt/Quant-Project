@@ -3,11 +3,18 @@ import numpy as np
 from functools import reduce
 
 def calculate_portvals(price_df: pd.DataFrame, weight_df: pd.DataFrame) -> pd.DataFrame:
-    '''
-    with price_df and weight_df, calculate periodic portfolio values for each rebalancing dates 
-    periodic portfolio value is the result of price changes during each periods
-    '''
-    
+    """calculate_portvals
+
+    Args:
+        price_df (pd.DataFrame): 
+        - DataFrame -> 일별 종가를 담고 있는 df
+        weight_df (pd.DataFrame): 
+        - DataFrame -> 팩터, 최적화가 끝난 최종 투자비중 df
+
+    Returns:
+        pd.DataFrame -> 일별 가격의 변동에 따른 최종 투자비중의 일별 변동 => 포트폴리오에 담긴 자산별 가치의 변화를 보여줌 
+    """
+
     cum_rtn_up_until_now = 1 
     individual_port_val_df_list = []
     prev_end_day = weight_df.index[0]
@@ -30,33 +37,50 @@ def calculate_portvals(price_df: pd.DataFrame, weight_df: pd.DataFrame) -> pd.Da
     return individual_port_val_df
 
 
-def get_returns_df(individual_port_val_df: pd.DataFrame, N: int, log: bool) -> pd.DataFrame:
-    '''
-    simple returns or log returns of periodic portfolio value 
-    N(# of lookback window) = 1
-    '''
-    
-    df = individual_port_val_df
+def get_daily_rets(individual_port_val_df: pd.DataFrame, N: int=1, log: bool=False) -> pd.DataFrame:
+    """get_daily_rets
+
+    Args:
+        individual_port_val_df (pd.DataFrame): 
+            - DataFrame -> culate_portvals의 리턴 값으로 일별 투자비중의 변동을 나타내는 df
+        N (int): 
+            - int: 수익률을 구하기 위한 look-back window -> default=1
+        log (bool): 
+            - bool: 로그 수익률을 사용할지 결정 -> default=False
+
+    Returns:
+        pd.DataFrame -> 포트폴리오의 일별 수익룰 df
+    """
+
+    portval_df = individual_port_val_df.sum(axis=1)
     
     if log:
-        return np.log(df/df.shift(N)).iloc[N-1:].fillna(0)
+        return np.log(portval_df/portval_df.shift(N)).iloc[N-1:].fillna(0)
     
     else:
-        return df.pct_change(N, fill_method=None).iloc[N-1:].fillna(0)
+        return portval_df.pct_change(N, fill_method=None).iloc[N-1:].fillna(0)
 
 
-def get_cum_returns_df(return_df: pd.DataFrame, log: bool) -> pd.DataFrame:
-    '''
-    cumulated returns 
-    '''
+def get_cum_rets(daily_return_df: pd.DataFrame, log: bool=False) -> pd.DataFrame:
+    """get_cum_returns
+
+    Args:
+        daily_return_df (pd.DataFrame): 
+            - DataFrame -> get_returns의 리턴 값으로 포트폴리오의 일별 수익률 df
+        log (bool): 
+            - bool: 로그 수익률을 사용할지 결정 -> default=False
+
+    Returns:
+        pd.DataFrame -> 포트폴리오의 누적수익룰 df
+    """
     
     if log:
-        return np.exp(return_df.cumsum())
+        return np.exp(daily_return_df.cumsum())
     
     else:
         
-         # same with (return_df.cumsum() + 1)
-        return (1 + return_df).cumprod()   
+        # same with (return_df.cumsum() + 1)
+        return (1 + daily_return_df).cumprod()   
 
 
 def get_CAGR_series(cum_rtn_df: pd.DataFrame, num_day_in_year: int) -> pd.Series:

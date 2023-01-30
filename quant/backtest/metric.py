@@ -8,6 +8,8 @@ from itertools import groupby, chain
 from typing import Union
 
 
+import yfinance as yf
+
 class Metric:
     def __init__(self, portfolio: Union[pd.DataFrame, pd.Series],
                  freq: str='day'):
