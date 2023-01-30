@@ -477,11 +477,11 @@ class Metric:
                     delta: float=0.01) -> None:
         
         report = self.rolling_metric(returns=returns, lookback=lookback,
-                                     MDD_lookback=MDD_lookback, delta=delta)
+                                    MDD_lookback=MDD_lookback, delta=delta)
         report.reset_index(inplace=True, names=['Date'])
         
         _, ax = plt.subplots(4, 2, figsize=(8, 16))
-        plt.subplots_adjust(wspace=0.3, hspace=0.2)
+        plt.subplots_adjust(wspace=0.3, hspace=0.4)
         
         sns.lineplot(data=report, x='Date', y='dd', ax=ax[0][0])
         ax[0][0].set_title('Drawdown')
@@ -498,9 +498,9 @@ class Metric:
         sns.lineplot(data=report, x='Date', y='hit', ax=ax[3][0])
         ax[3][0].set_title('1-year hit Ratio')
         sns.lineplot(data=report, x='Date', y='GtP', ax=ax[3][1])
-        ax[4][1].set_title('1-year GtP Ratio')
+        ax[3][1].set_title('1-year GtP Ratio')
         plt.show()
-        
+                
 if __name__ == '__main__':
     data = yf.download('SPY TLT', start='2002-07-30')['Adj Close']
     test = Metric(data)
