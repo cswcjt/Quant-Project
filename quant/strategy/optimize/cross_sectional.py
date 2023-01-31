@@ -59,21 +59,22 @@ class Equalizer:
         elif isinstance(data, pd.Series):
             data = data.apply(eliminate)
         return data
-
-    # BETA(buy and hold 가중 함수)
+    
+    # BETA(비교를 위해 계산)
     def beta(self) -> pd.DataFrame:
         """beta
 
         Returns:
-            weights: 시그널을 무시하고 모든 자산에 동일한 비중으로 투자할 때의 weight df -> 벤치마크로 사용하기 위해 만듬
-            밑에서 부터는 시그널이 존재하는 자산에만 비중을 산출하는 방법론들임
+            weights: 모든 종목에만 동일한 비중으로 투자할 때의 weight df
         """
-        weights = self.signal.copy()
-        weights.iloc[:] = 1 / self.noa
+        beta_signal = self.signal.copy()
+        beta_signal = beta_signal.replace({0:1})
         
+        weights = beta_signal.apply(lambda series: series / series.sum(), axis=1)
         weights = self.eps(weights)
-
+        
         return weights
+        
     
     # EW(동일 비중 가중치 계산 함수)
     def ew(self) -> pd.DataFrame:
@@ -83,7 +84,6 @@ class Equalizer:
             weights: 투자 시그널이 존재하는 종목에만 동일한 비중으로 투자할 때의 weight df
         """
         weights = self.signal.apply(lambda series: series / series.sum(), axis=1)
-        
         weights = self.eps(weights)
         
         return weights
