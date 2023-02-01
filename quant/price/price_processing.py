@@ -122,81 +122,61 @@ def price_on_rebal(price: pd.DataFrame, rebal_dates: list) -> pd.DataFrame:
     price_on_rebal = price.loc[rebal_dates, :]
     return price_on_rebal
 
-def calculate_portvals(price_df: pd.DataFrame, weight_df: pd.DataFrame) -> pd.DataFrame:
-    """calculate_portvals
-
-    Args:
-        price_df (pd.DataFrame): 
-        - DataFrame -> 일별 종가를 담고 있는 df
-        weight_df (pd.DataFrame): 
-        - DataFrame -> 팩터, 최적화가 끝난 최종 투자비중 df
-
-    Returns:
-        pd.DataFrame -> 일별 가격의 변동에 따른 최종 투자비중의 일별 변동 => 포트폴리오에 담긴 자산별 가치의 변화를 보여줌 
-    """
-
+def calculate_portvals(price_df: pd.DataFrame, weight_df: pd.DataFrame, signal_df: pd.DataFrame, long_only: str) -> pd.DataFrame:
     cum_rtn_up_until_now = 1 
     individual_port_val_df_list = []
     prev_end_day = weight_df.index[0]
     
-    for end_day in weight_df.index[1:]:
-        sub_price_df = price_df.loc[prev_end_day:end_day]
-        sub_asset_flow_df = sub_price_df/sub_price_df.iloc[0]
+    if long_only: 
+        for end_day in weight_df.index[1:]:
+            sub_price_df = price_df.loc[prev_end_day:end_day]
+            sub_asset_flow_df = sub_price_df/sub_price_df.iloc[0]
 
-        weight_series = weight_df.loc[prev_end_day]
-        indi_port_cum_rtn_series = (sub_asset_flow_df*weight_series)*cum_rtn_up_until_now
-    
-        individual_port_val_df_list.append(indi_port_cum_rtn_series)
-
-        total_port_cum_rtn_series = indi_port_cum_rtn_series.sum(axis=1)
-        cum_rtn_up_until_now = total_port_cum_rtn_series.iloc[-1]
-
-        prev_end_day = end_day 
-
-    individual_port_val_df = reduce(lambda x, y: pd.concat([x, y.iloc[1:]]), individual_port_val_df_list)
-    return individual_port_val_df
-
-def get_daily_rets(individual_port_val_df: pd.DataFrame, N: int=1, log: bool=False) -> pd.DataFrame:
-    """get_daily_rets
-
-    Args:
-        individual_port_val_df (pd.DataFrame): 
-            - DataFrame -> culate_portvals의 리턴 값으로 일별 투자비중의 변동을 나타내는 df
-        N (int): 
-            - int: 수익률을 구하기 위한 look-back window -> default=1
-        log (bool): 
-            - bool: 로그 수익률을 사용할지 결정 -> default=False
-
-    Returns:
-        pd.DataFrame -> 포트폴리오의 일별 수익룰 df
-    """
-
-    portval_df = individual_port_val_df.sum(axis=1)
-    
-    if log:
-        return np.log(portval_df/portval_df.shift(N)).iloc[N-1:].fillna(0)
-    
-    else:
-        return portval_df.pct_change(N, fill_method=None).iloc[N-1:].fillna(0)
-
-def get_cum_rets(daily_return_df: pd.DataFrame, log: bool=False) -> pd.DataFrame:
-    """get_cum_returns
-
-    Args:
-        daily_return_df (pd.DataFrame): 
-            - DataFrame -> get_returns의 리턴 값으로 포트폴리오의 일별 수익률 df
-        log (bool): 
-            - bool: 로그 수익률을 사용할지 결정 -> default=False
-
-    Returns:
-        pd.DataFrame -> 포트폴리오의 누적수익룰 df
-    """
-    
-    if log:
-        return np.exp(daily_return_df.cumsum())
-    
-    else:
+            weight_series = weight_df.loc[prev_end_day]
+            indi_port_cum_rtn_series = (sub_asset_flow_df*weight_series)*cum_rtn_up_until_now
         
-        # same with (return_df.cumsum() + 1)
-        return (1 + daily_return_df).cumprod()   
+            individual_port_val_df_list.append(indi_port_cum_rtn_series)
 
+            total_port_cum_rtn_series = indi_port_cum_rtn_series.sum(axis=1)
+            cum_rtn_up_until_now = total_port_cum_rtn_series.iloc[-1]
+
+            prev_end_day = end_day 
+
+        individual_port_val_df = reduce(lambda x, y: pd.concat([x, y.iloc[1:]]), individual_port_val_df_list)
+        return individual_port_val_df
+    
+    else:
+        for end_day in weight_df.index[1:]:
+            sub_price_df = price_df.loc[prev_end_day:end_day]
+            signal_series = signal_df.loc[prev_end_day]
+
+            long_signal = signal_series.replace({-1: 0})
+            short_signal = signal_series.replace({1: 0, -1: 1})
+
+            sub_price_df_reverse = sub_price_df.sort_index(ascending=False)
+            
+            sub_asset_flow_df = sub_price_df/sub_price_df.iloc[0]
+            sub_asset_flow_df_reverse = sub_price_df_reverse/sub_price_df_reverse.iloc[0]
+
+            weight_series = weight_df.loc[prev_end_day]
+            long_weight_series = weight_series * long_signal
+            short_weight_series = weight_series * short_signal
+            
+            indi_port_cum_rtn_series = (sub_asset_flow_df * long_weight_series) * cum_rtn_up_until_now\
+                + (sub_asset_flow_df_reverse * short_weight_series) * cum_rtn_up_until_now
+        
+            individual_port_val_df_list.append(indi_port_cum_rtn_series)
+
+            total_port_cum_rtn_series = indi_port_cum_rtn_series.sum(axis=1)
+            cum_rtn_up_until_now = total_port_cum_rtn_series.iloc[-1]
+
+            prev_end_day = end_day 
+
+        individual_port_val_df = reduce(lambda x, y: pd.concat([x, y.iloc[1:]]), individual_port_val_df_list)
+        return individual_port_val_df
+
+def port_cum_rets(calculate_portvals, N=1):
+    portval_df = calculate_portvals.sum(axis=1) 
+    port_daily_rets = portval_df.pct_change(N, fill_method=None).iloc[N-1:].fillna(0)
+
+    return (1 + port_daily_rets).cumprod()

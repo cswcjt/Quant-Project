@@ -29,9 +29,10 @@ class MomentumFactor:
         self.lookback_window = lookback_window
         self.rets = rebal_price.pct_change(self.lookback_window).fillna(0)
         self.n_sel = n_sel
+        self.long_only = long_only
 
     # 절대 모멘텀 시그널 계산 함수
-    def absolute_momentum(self, long_only: bool=True) -> pd.DataFrame:
+    def absolute_momentum(self) -> pd.DataFrame:
         """absolute_momentum
 
         Args:
@@ -51,7 +52,7 @@ class MomentumFactor:
         short_signal = (returns < 0) * -1
 
         # 토탈 시그널
-        if long_only:
+        if self.long_only == True:
             signal = long_signal
 
         else:
@@ -60,7 +61,7 @@ class MomentumFactor:
         return signal.iloc[self.lookback_window:,]#.dropna(inplace=True)
     
     # 상대 모멘텀 시그널 계산 함수
-    def relative_momentum(self, long_only: bool=True) -> pd.DataFrame:
+    def relative_momentum(self) -> pd.DataFrame:
         """relative_momentum
 
         Args:
@@ -87,7 +88,7 @@ class MomentumFactor:
         short_signal = (rank >= len(rank.columns) - n_sel + 1) * -1
 
         # 토탈 시그널
-        if long_only:
+        if self.long_only == True:
             signal = long_signal
 
         else:
@@ -96,7 +97,7 @@ class MomentumFactor:
         return signal.iloc[self.lookback_window:,]#.dropna(inplace=True)
     
     # 듀얼 모멘텀 시그널 계산 함수
-    def dual_momentum(self, long_only: bool=True) -> pd.DataFrame:
+    def dual_momentum(self) -> pd.DataFrame:
         """dual_momentum
 
         Args:
@@ -108,10 +109,10 @@ class MomentumFactor:
         """
 
         # 절대 모멘텀 시그널
-        abs_signal = self.absolute_momentum(long_only)
+        abs_signal = self.absolute_momentum()
 
         # 상대 모멘텀 시그널
-        rel_signal = self.relative_momentum(long_only)
+        rel_signal = self.relative_momentum()
 
         # 듀얼 모멘텀 시그널
         signal = (abs_signal == rel_signal) * abs_signal
@@ -119,19 +120,3 @@ class MomentumFactor:
         # 절대 모멘텀과 상대 모멘텀의 시그널을 받을 때 이미 signal.iloc[self.lookback_window:,] 반영되어 있음
         return signal
 
-    # def momentum_score(self, long_only: bool=True):
-        
-    #     price = self.price
-    #     score_result = (12*price.pct_change(1)) + (4*price.pct_change(3)) \
-    #                                                   + (2*price.pct_change(6)) \
-    #                                                   + (1*price.pct_change(12))
-
-    #     score_result = score_result.dropna()
-
-    #     # 2.2 : MOMENTUM SCORE OF CANARY ASSET
-    #     canary_signal_series = (score_result[canary_asset] > 0).sum(axis=1)
-    #     canary_signal_series
-    #     score_result['canary_signal'] = canary_signal_series
-    #     score_result
-
-    #     return signal
