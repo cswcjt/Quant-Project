@@ -1,0 +1,74 @@
+{% load static %}
+
+<!-- <div class="offcanvas offcanvas-end bg-light" 
+    tabindex="-1" id="offcanvasRight" 
+    aria-labelledby="offcanvasRightLabel">
+
+    <div class="offcanvas-header">
+        <h5 id="offcanvasRightLabel">
+            Portfolio Strategy Laboratory
+        </h5>
+
+        <button type="button" 
+            class="btn-close text-reset" 
+            data-bs-dismiss="offcanvas" 
+            aria-label="Close">
+        </button>
+    </div>
+
+    <div class="offcanvas-body">
+        <form action="">
+            <div>
+                <p class="check-box-title">
+                    Time Range
+                </p>
+                <div>
+                    <input type="date" name="trip-start" 
+                        id="id_start" 
+                        class="time-input rounded shadow-sm p-1 cursor-pointer">
+                    ~
+                    <input type="date" name="trip-start" 
+                        id="id_end" 
+                        class="time-input rounded shadow-sm p-1 cursor-pointer">
+                </div>
+            </div>
+        
+            {# for checkbox in checkboxs_info #}
+                {# include 'core/components/sidebar/checkbox.html' with chekbox=checkbox #}
+            {# endfor #}
+        
+            <div class="d-grid mt-4">
+                <button type="submit" class="btn btn-primary shadow-sm">
+                    Apply
+                </button>
+            </div>
+        </form>
+    </div>
+</div> -->
+
+<form action="">
+    <div class="mt-2">
+        <p class="check-box-title">
+            Time Range
+        </p>
+        <div>
+            <input type="date" name="trip-start" 
+                id="id_start" 
+                class="time-input rounded shadow-sm p-1 cursor-pointer border">
+            ~
+            <input type="date" name="trip-start" 
+                id="id_end" 
+                class="time-input rounded shadow-sm p-1 cursor-pointer border">
+        </div>
+    </div>
+
+    {% for checkbox in checkboxs_info %}
+        {% include 'dashboard/components/sidebar/checkbox.html' with chekbox=checkbox %}
+    {% endfor %}
+
+    <div class="d-grid mt-4">
+        <button type="submit" class="btn btn-primary shadow-sm">
+            Apply
+        </button>
+    </div>
+</form>
