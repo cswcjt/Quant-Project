@@ -1,0 +1,94 @@
+{% extends 'dashboard/container/layout.html' %}
+{% load static %}
+
+
+{% block chart_content %}
+    <div class="row px-3">
+
+        <div class="col-12">
+            <div class="row">
+                <div class="col-12 px-1">
+                    <div class="chart-h-full shadow-sm bg-white border">
+                        <p class="chart-title">
+                            Market Regime Clustering
+                        </p>
+                        <div id="regime_clustering"></div>                    
+                    </div>
+                </div>
+
+                <div class="col-12 pt-4">
+                    <div class="row">
+                        <div class="col-7 px-1">
+                            <div class="row">
+                                <div class="col-12">
+                                    <div class="chart-h-half shadow-sm bg-white border">
+                                        <p class="chart-title">
+                                            Market Index Chart
+                                        </p>
+                                        <div id="index_chart"></div>
+                                    </div>                            
+                                </div>
+        
+                                <div class="col-12 mt-3">
+                                    <div class="chart-h-half shadow-sm bg-white border">
+                                        <p class="chart-title">
+                                            Market Index Forecasting
+                                        </p>
+                                        <div id="index_forecasting"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+        
+                        <div class="col-5 px-1">
+                            <div class="row">
+                                <div class="col-12">
+                                    <div class="chart-h-half shadow-sm bg-white border">
+                                        <p class="chart-title">
+                                            Heatmap : Market Regime - Factor Return
+                                        </p>
+                                        <div id="market_regime"></div>
+                                    </div>
+                                </div>
+        
+                                <div class="col-12 mt-3">
+                                    <div class="chart-h-half shadow-sm bg-white border">
+                                        <p class="chart-title">
+                                            Heatmap : Economic Growth - Factor Return
+                                        </p>
+                                        <div id="economic_growth"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+    </div>
+{% endblock %}
+
+{% block script %}
+    {{ block.super }}
+    <script>
+        axios.get('{{ api_url }}')
+            .then(function (response) {
+                const data = response.data;
+
+                Object.keys(data).forEach(key => {
+                    chart.draw(
+                        key, 
+                        data[key]['data'], 
+                        data[key]['type'],
+                        data[key]['colors'],
+                        data[key]['height']
+                    );
+                })
+                
+            }).catch(function (err) {
+                console.error(err);
+            })
+    </script>
+{% endblock %}

@@ -1,0 +1,137 @@
+{% extends 'dashboard/container/layout.html' %}
+{% load static %}
+
+
+{% block chart_content %}
+    <div class="row px-3">
+
+        <div class="col-12 px-1">
+            <div class="chart-h-full shadow-sm bg-white border">
+                <p class="chart-title">
+                    Yearly Return Ranking : Factors
+                </p>
+            </div>
+        </div>
+
+        <div class="col-12 pt-4">
+            <div class="row">
+
+                <div class="col-7 px-1">
+                    <div class="row">
+                        <div class="col-12">
+                            <div class="chart-h-half shadow-sm bg-white border">
+                                <p class="chart-title">
+                                    Cumulative Return : Factors
+                                </p>
+                                <canvas id="cumulative-return-factors" height="110"></canvas>
+                            </div>
+                        </div>
+        
+                        <div class="col-12 mt-3">
+                            <div class="chart-h-half shadow-sm bg-white border">
+                                <p class="chart-title">
+                                    1-year Rolling Factor Correlation
+                                </p>
+                                <canvas id="1-year-rolling-factor-correlation" height="110"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+        
+                <div class="col-5">
+                    <div class="row">
+                        <div class="col-12 px-1">
+                            <div class="chart-h-half shadow-sm bg-white border">
+                                <p class="chart-title">
+                                    MECE
+                                </p>
+                            </div> 
+                        </div>
+        
+                        <div class="col-12 mt-3">
+                            <div class="row">
+                                <div class="col-12">
+                                    <div class="row">
+                                        <div class="col-4 px-1">
+                                            <div class="chart-h-small shadow-sm bg-white border">
+                                                <p class="chart-title">
+                                                    Beta
+                                                </p>
+                                                <div class="d-flex justify-content-center h-50 pt-2">
+                                                    <p class="m-0 fs-6 text-danger align-self-center">20.5%</p>
+                                                </div>
+                                            </div>
+                                        </div>
+        
+                                        <div class="col-4 px-1">
+                                            <div class="chart-h-small shadow-sm bg-white border">
+                                                <p class="chart-title">
+                                                    Momentum
+                                                </p>
+                                                <div class="d-flex justify-content-center h-50 pt-2">
+                                                    <p class="m-0 fs-6 text-danger align-self-center">20.5%</p>
+                                                </div>
+                                            </div>
+                                        </div>
+        
+                                        <div class="col-4 px-1">
+                                            <div class="chart-h-small shadow-sm bg-white border">
+                                                <p class="chart-title">
+                                                    Volatility
+                                                </p>
+                                                <div class="d-flex justify-content-center h-50 pt-2">
+                                                    <p class="m-0 fs-6 text-danger align-self-center">20.5%</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+        
+                                <div class="col-12 mt-3">
+                                    <div class="row">
+                                        <div class="col-4 px-1">
+                                            <div class="chart-h-small shadow-sm bg-white border">
+                                                <p class="chart-title">
+                                                    Value
+                                                </p>
+                                                <div class="d-flex justify-content-center h-50 pt-2">
+                                                    <p class="m-0 fs-6 text-danger align-self-center">20.5%</p>
+                                                </div>
+                                            </div>
+                                        </div>
+        
+                                        <div class="col-4 px-1">
+                                            <div class="chart-h-small shadow-sm bg-white border">
+                                                <p class="chart-title">
+                                                    Carry
+                                                </p>
+                                                <div class="d-flex justify-content-center h-50 pt-2">
+                                                    <p class="m-0 fs-6 text-danger align-self-center">20.5%</p>
+                                                </div>
+                                            </div>
+                                        </div>
+        
+                                        <div class="col-4 px-1">
+                                            <div class="chart-h-small shadow-sm bg-white border">
+                                                <p class="chart-title">
+                                                    AI Forecasting
+                                                </p>
+                                                <div class="d-flex justify-content-center h-50 pt-2">
+                                                    <p class="m-0 fs-6 text-danger align-self-center">20.5%</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+        
+                            </div>
+                        </div>
+        
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+    </div>
+{% endblock %}

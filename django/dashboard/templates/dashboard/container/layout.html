@@ -1,0 +1,87 @@
+{% extends 'container/base.html' %}
+
+{% load static %}
+
+{% block css %}
+    <style>
+        .chart-nav {
+            display: flex;
+            flex-wrap: wrap;
+            padding-left: 0;
+            margin-bottom: 0;
+            list-style: none;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        .chart-nav .chart-nav-link {
+            margin-bottom: -1px;
+            background: 0 0;
+        }
+
+        .chart-nav-link {
+            display: block;
+            padding: 0.5rem 1rem;
+            color: #495057;
+            text-decoration: none;
+            transition: color .15s ease-in-out,background-color .15s ease-in-out,border-color .15s ease-in-out;
+        }
+
+        .chart-nav .chart-nav-link.active {
+            color: #0d6efd;
+            border-bottom: 2px solid #0d6efd;
+        }
+    </style>
+{% endblock %}
+
+{% block content %}
+    <div class="container">
+        <div class="row">
+
+            <div class="col-12 pt-5 pb-5">
+                <ul class="chart-nav">
+                    <li class="chart-nav-item">
+                        <a href="{% url 'dashboard:portfolio' %}"
+                            id="portfolio"
+                            class="chart-nav-link fs-5">
+                            Portfolio Universe
+                        </a>
+                    </li>
+                    <li class="chart-nav-item">
+                        <a href="{% url 'dashboard:factor' %}"
+                            id="factor"
+                            class="chart-nav-link fs-5">
+                            Factor Universe
+                        </a>
+                    </li>
+                    <li class="chart-nav-item">
+                        <a href="{% url 'dashboard:market' %}"
+                            id="market"
+                            class="chart-nav-link fs-5">
+                            Market Universe
+                        </a>
+                    </li>
+                </ul>
+            </div>
+
+            <div class="col-9">
+                {% block chart_content %}
+                {% endblock %}
+            </div>
+
+            <div id="sidebar" class="col-3 border bg-white">
+                {% include 'dashboard/components/sidebar/sidebar.html' %}
+            </div>
+        </div>
+    </div>
+{% endblock %}
+
+{% block script %}
+    <script src="{% static 'js/chart.js' %}"></script>
+    <script>
+        const chart = new Chart();
+        axios.defaults.xsrfCookieName = 'csrftoken';
+		axios.defaults.xsrfHeaderName = 'X-CSRFToken';
+
+        document.getElementById('{{ app_name }}').classList.add('active');
+    </script>
+{% endblock %}

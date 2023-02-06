@@ -1,0 +1,301 @@
+{% extends 'dashboard/container/layout.html' %}
+{% load static %}
+
+
+{% block chart_content %}
+    <div class="row px-3">
+
+        <div class="col-12 px-1">
+            <div class="chart-h-full shadow-sm bg-white border">
+                <p class="chart-title">
+                    Cumulative Return: Portfolilo vs S&P500
+                </p>
+                <div id="cumulative"></div>
+            </div>
+        </div>
+
+        <div class="col-12 pt-4">
+            <div class="row">
+                <div class="col-7 px-1">
+                    <div class="row">
+                        <div class="col-12">
+                            <div class="chart-h-half shadow-sm bg-white border">
+                                <p class="chart-title">
+                                    MDD: Portfolilo vs S&P500
+                                </p>
+                                <div id="mdd"></div>
+                            </div>
+                            
+                        </div>
+                        <div class="col-12 mt-3">
+                            <div class="chart-h-half shadow-sm bg-white border">
+                                <p class="chart-title">
+                                    1-year Rolling Sharp Ratio
+                                </p>
+                                <div id="rolling_sharp_ratio"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-5">
+                    <div class="row">
+
+                        <div class="col-12 px-1">
+                            <div class="chart-h-quarter d-flex flex-column shadow-sm bg-white border">
+                                <div class="d-flex pb-1">
+                                    <div class="col-4"></div>
+                                    <div class="col-4 chart-title border-0 text-center">
+                                        My Portfolio
+                                    </div>
+                                    <div class="col-4 chart-title border-0 text-center">
+                                        S&P 500
+                                    </div>
+                                </div>
+
+                                <div class="d-flex pb-1">
+                                    <div class="col-4 chart-title border-0">
+                                        Total Return
+                                    </div>
+                                    <div class="col-4 text-danger text-center">
+                                        20.5%
+                                    </div>
+                                    <div class="col-4 text-danger text-center">
+                                        12.1%
+                                    </div>
+                                </div>
+
+                                <div class="d-flex pb-1">
+                                    <div class="col-4 chart-title border-0">
+                                        Total Return
+                                    </div>
+                                    <div class="col-4 text-primary text-center">
+                                        -23.1%
+                                    </div>
+                                    <div class="col-4 text-primary text-center">
+                                        -28.8%
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-12 mt-4">
+
+                            <div class="row">
+                                <div class="col-4 px-1">
+                                    <div class="chart-h-small shadow-sm bg-white border">
+                                        <p class="chart-title">
+                                            MDD
+                                        </p>
+
+                                        <div class="d-flex flex-column">
+                                            <div class="d-flex pt-2">
+                                                <div class="flex-fill ps-1">Portfolio</div>
+                                                <div class="flex-fill">0.12</div>
+                                            </div>
+
+                                            <div class="d-flex pt-2">
+                                                <div class="flex-fill ps-1">S&P500</div>
+                                                <div class="flex-fill">0.12</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="col-4 px-1">
+                                    <div class="chart-h-small shadow-sm bg-white border">
+                                        <p class="chart-title">
+                                            Max Underwater
+                                        </p>
+                                        
+                                        <div class="d-flex flex-column">
+                                            <div class="d-flex pt-2">
+                                                <div class="flex-fill ps-1">Portfolio</div>
+                                                <div class="flex-fill">126 d</div>
+                                            </div>
+
+                                            <div class="d-flex pt-2">
+                                                <div class="flex-fill ps-1">S&P500</div>
+                                                <div class="flex-fill">126 d</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="col-4 px-1">
+                                    <div class="chart-h-small shadow-sm bg-white border">
+                                        <p class="chart-title">
+                                            Yearly Volatility
+                                        </p>
+
+                                        <div class="d-flex flex-column">
+                                            <div class="d-flex pt-2">
+                                                <div class="flex-fill ps-1">Portfolio</div>
+                                                <div class="flex-fill">0.12</div>
+                                            </div>
+
+                                            <div class="d-flex pt-2">
+                                                <div class="flex-fill ps-1">S&P500</div>
+                                                <div class="flex-fill">0.12</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="row mt-4">
+                                <div class="col-4 px-1">
+                                    <div class="chart-h-small shadow-sm bg-white border">
+                                        <p class="chart-title">
+                                            Sharp ratio
+                                        </p>
+
+                                        <div class="d-flex flex-column">
+                                            <div class="d-flex pt-2">
+                                                <div class="flex-fill ps-1">Portfolio</div>
+                                                <div class="flex-fill">0.12</div>
+                                            </div>
+
+                                            <div class="d-flex pt-2">
+                                                <div class="flex-fill ps-1">S&P500</div>
+                                                <div class="flex-fill">0.12</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="col-4 px-1">
+                                    <div class="chart-h-small shadow-sm bg-white border">
+                                        <p class="chart-title">
+                                            Sortino Ratio
+                                        </p>
+
+                                        <div class="d-flex flex-column">
+                                            <div class="d-flex pt-2">
+                                                <div class="flex-fill ps-1">Portfolio</div>
+                                                <div class="flex-fill">0.12</div>
+                                            </div>
+
+                                            <div class="d-flex pt-2">
+                                                <div class="flex-fill ps-1">S&P500</div>
+                                                <div class="flex-fill">0.12</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="col-4 px-1">
+                                    <div class="chart-h-small shadow-sm bg-white border">
+                                        <p class="chart-title">
+                                            Calmar ratio
+                                        </p>
+
+                                        <div class="d-flex flex-column">
+                                            <div class="d-flex pt-2">
+                                                <div class="flex-fill ps-1">Portfolio</div>
+                                                <div class="flex-fill">0.12</div>
+                                            </div>
+
+                                            <div class="d-flex pt-2">
+                                                <div class="flex-fill ps-1">S&P500</div>
+                                                <div class="flex-fill">0.12</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            
+                            <div class="row mt-4">
+                                <div class="col-4 px-1">
+                                    <div class="chart-h-small shadow-sm bg-white border">
+                                        <p class="chart-title">
+                                            CVaR Ratio
+                                        </p>
+
+                                        <div class="d-flex flex-column">
+                                            <div class="d-flex pt-2">
+                                                <div class="flex-fill ps-1">Portfolio</div>
+                                                <div class="flex-fill">0.12</div>
+                                            </div>
+
+                                            <div class="d-flex pt-2">
+                                                <div class="flex-fill ps-1">S&P500</div>
+                                                <div class="flex-fill">0.12</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="col-4 px-1">
+                                    <div class="chart-h-small shadow-sm bg-white border">
+                                        <p class="chart-title">
+                                            Hit Ratio
+                                        </p>
+
+                                        <div class="d-flex flex-column">
+                                            <div class="d-flex pt-2">
+                                                <div class="flex-fill ps-1">Portfolio</div>
+                                                <div class="flex-fill">0.12</div>
+                                            </div>
+
+                                            <div class="d-flex pt-2">
+                                                <div class="flex-fill ps-1">S&P500</div>
+                                                <div class="flex-fill">0.12</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="col-4 px-1">
+                                    <div class="chart-h-small shadow-sm bg-white border">
+                                        <p class="chart-title">
+                                            Gain-to-Pain
+                                        </p>
+
+                                        <div class="d-flex flex-column">
+                                            <div class="d-flex pt-2">
+                                                <div class="flex-fill ps-1">Portfolio</div>
+                                                <div class="flex-fill">0.12</div>
+                                            </div>
+
+                                            <div class="d-flex pt-2">
+                                                <div class="flex-fill ps-1">S&P500</div>
+                                                <div class="flex-fill">0.12</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                        </div>
+                    </div>
+                </div>
+            </div>  
+        </div>
+
+    </div>
+{% endblock %}
+
+{% block script %}
+    {{ block.super }}
+    <script>
+        axios.get('{{ api_url }}')
+            .then(function (response) {
+                const data = response.data;
+
+                Object.keys(data).forEach(key => {
+                    chart.draw(
+                        key, 
+                        data[key]['data'], 
+                        data[key]['type'],
+                        data[key]['colors'],
+                        data[key]['height']
+                    );
+                })
+                
+            }).catch(function (err) {
+                console.error(err);
+            })
+    </script>
+{% endblock %}
