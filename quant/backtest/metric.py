@@ -1,3 +1,4 @@
+import json
 import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns
@@ -93,15 +94,15 @@ class Metric:
         return wrapper
     
     @external
-    def annualized_return(self, returns: pd.Series=None) -> float:
+    def CAGR(self, returns: pd.Series=None) -> float:
         try:
             return returns.add(1).prod() ** (self.param / len(returns)) - 1
         except AttributeError:
-            return returns.apply(lambda x: self.annualized_return(x))
+            return returns.apply(lambda x: self.CAGR(x))
     
     @external
     def annualized_volatility(self, returns: pd.Series=None) -> float:
-        return returns.std() * np.sqrt(self.param)
+        return returns.std() * np.sqrt(self.param / len(returns))
     
     @rolling
     def sharp_ratio(self, returns: pd.Series,
@@ -129,7 +130,7 @@ class Metric:
                 - Series -> (lookback)년 롤링 연율화 샤프지수
                 - float -> 연율화 샤프지수
         '''
-        return (self.annualized_return(returns) - yearly_rfr)/self.annualized_volatility(returns)
+        return (self.CAGR(returns) - yearly_rfr) / self.annualized_volatility(returns)
     
     @rolling
     def sortino_ratio(self, returns: pd.Series=None,
@@ -164,7 +165,7 @@ class Metric:
             except TypeError:
                 return returns.apply(lambda x: downside_std(x))
         
-        return self.annualized_return(returns) - yearly_rfr / downside_std(returns)
+        return (self.CAGR(returns) - yearly_rfr) / downside_std(returns)
 
     @external
     def calmar_ratio(self, returns: pd.Series=None,
@@ -201,7 +202,7 @@ class Metric:
             returns = returns.rolling(lookback)
             dd = dd.rolling(MDD_lookback)
         
-        calmar = - self.annualized_return(returns) / dd.min()
+        calmar = - self.CAGR(returns) / dd.min()
         return calmar
     
     @external
@@ -409,7 +410,7 @@ class Metric:
     
     @external
     def print_report(self, returns: pd.Series=None, delta: float=0.01):
-        print(f'Annualized Return: {self.annualized_return(returns):.2%}')
+        print(f'CAGR: {self.CAGR(returns):.2%}')
         print(f'Annualized Volatility: {self.annualized_volatility(returns):.2%}')
         print(f'Skewness: {self.skewness(returns):.2f}')
         print(f'Kurtosis: {self.kurtosis(returns):.2f}')
@@ -424,10 +425,11 @@ class Metric:
         print(f'Annualized CVaR Ratio: {self.CVaR_ratio(returns, delta=delta):.2f}')
         print(f'Annualized hit Ratio: {self.hit_ratio(returns):.2f}')
         print(f'Annualized GtP Ratio: {self.GtP_ratio(returns):.2f}')
-        
+    
+    @external        
     def numeric_metric(self, returns: pd.Series=None,
                        delta: float=0.01, dict: bool=True) -> Union[dict, pd.Series]:
-        result = {'Annualized Return': self.annualized_return(returns),
+        result = {'CAGR': self.CAGR(returns),
                   'Annualized Volatility': self.annualized_volatility(returns),
                   'Skewness': self.skewness(returns),
                   'Kurtosis': self.kurtosis(returns),
