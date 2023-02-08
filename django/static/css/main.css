@@ -1,0 +1,97 @@
+.fs-7 {
+    /* 15px */
+    font-size: .9375rem !important;
+}
+.fs-8 {
+    /* 14px */
+    font-size: .875rem !important;
+}
+.fs-9 {
+    /* 13px */
+    font-size: .8125rem !important;
+}
+.fs-10 {
+    /* 12px */
+    font-size: .75rem !important;
+}
+.fs-11 {
+    /* 11px */
+    font-size: .6875rem !important;
+}
+.fs-12 {
+    /* 10px */
+    font-size: .625rem !important;
+}
+
+.mt-4h {
+    margin-top: 2rem;
+}
+
+.cursor-pointer {
+    cursor: pointer;
+}
+
+.form-check-inline {
+    margin-right: .5rem;
+}
+
+.universe-wrap {
+    width: 100px;
+    height: 416px;
+    border-radius: 12px;
+}
+
+#sidebar {
+    background-color: #D8E9F0;
+    border-radius: 12px;
+}
+
+#sidebar .time-input{
+    width: 114px; 
+    font-size: 12px;
+    border: 0;
+}
+
+#sidebar .checkbox-title {
+    font-size: 14px;
+    margin-bottom: 0.5rem !important;
+}
+
+#sidebar .check-box-wrap {
+    border-radius: 12px;
+}
+
+.chart-h-full, 
+.chart-h-half, 
+.chart-h-quarter, 
+.chart-h-small {
+    border-radius: 12px;
+}
+
+.chart-h-full {
+    min-height: 416px;
+}
+
+.chart-h-half {
+    min-height: 200px;
+}
+
+.chart-h-quarter {
+    min-height: 111px;
+}
+
+.chart-h-small {
+    min-height: 100px;
+    font-size: 10px;
+}
+
+.chart-title {
+    font-size: 12px;
+    border-bottom: 1px solid #dee2e6;
+    margin: 0;
+    padding: .5rem;
+}
+
+.chart-h-small .chart-title {
+    font-size: 10px;
+}

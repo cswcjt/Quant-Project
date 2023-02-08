@@ -1,0 +1,65 @@
+{% load static %}
+{% load display_filter %}
+
+<div class="mt-4h" 
+    id="checkbox-{{ checkbox.group_name|lower|convert_blank_to_underline }}">
+    <p class="checkbox-title">
+        <span>{{ checkbox.group_name }}</span>
+
+        {% if checkbox.is_multiple_check %}
+            <a href="#" 
+                id="check-all"
+                class="fs-10 text-primary ms-2">
+                All Select
+            </a>
+        {% endif %}
+    </p>
+
+    <div class="check-box-wrap bg-white shadow-sm border px-2">
+        <div class="row p-2">
+            {% for name in checkbox.input_name %}
+                <div class="col-6 d-flex align-items-center p-1">
+                    <input type="checkbox" 
+                        value="{{ name|lower|convert_blank_to_underline }}"
+                        name="{{ checkbox.group_name|lower|convert_blank_to_underline }}"
+                        class="form-check-input mt-0 me-2 cursor-pointer {% if not checkbox.is_multiple_check %}checkbox-unique{% endif %}"
+                        id="id_{{ name|lower|convert_blank_to_underline }}">
+
+                    <label for="id_{{ name|lower|convert_blank_to_underline }}" 
+                        class="form-check-label cursor-pointer fs-10">
+                        {{ name }}
+                    </label>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<script>
+    function check_all()  {
+        const checkAll = document.getElementById('check-all');
+        const checkBoxs = checkAll.parentNode.nextElementSibling.querySelectorAll(
+            '.form-check-input');
+
+        checkAll.addEventListener('click', e => {
+            e.preventDefault();
+            checkBoxs.forEach((e) => { e.checked = true; });
+        });
+    };
+
+    function checkbox_unique() {
+        const checkBoxs = document.querySelectorAll(
+            '#checkbox-{{ checkbox.group_name|lower|convert_blank_to_underline }} .checkbox-unique');
+
+        checkBoxs.forEach((checkbox) => {
+            checkbox.addEventListener('change', cb => {
+                checkBoxs.forEach((e) => {
+                    if (e != cb.target) { e.checked = false; }
+                });
+            })
+        });
+    };
+
+    check_all();
+    checkbox_unique();
+</script>
