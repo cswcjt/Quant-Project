@@ -13,8 +13,8 @@ def get_econ_info(indicators: dict={'cli': 'USALOLITONOSTSAM',
     
     fred = Fred(api_key=fred_key)
     temp = []
-    for indicator in indicators : 
-        target_df = pd.DataFrame({f'{indicator}': fred.get_series(f'{indicator}')})
+    for key, value in indicators.items() : 
+        target_df = pd.DataFrame({f'{key}': fred.get_series(f'{value}')})
         temp.append(target_df)
 
     econ_df = pd.concat(temp, axis = 1)
