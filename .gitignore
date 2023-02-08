@@ -9,7 +9,13 @@ quant/backtest/test.ipynb
 
 ### dataset directory ###
 data/
+*.csv
+tft/
 quant/dask-tutorial.ipynb
+quant/backtest/test.ipynb
+
+### API keys ###
+fredapikey.txt
 
 ### JupyterNotebooks ###
 # gitignore template for Jupyter Notebooks
