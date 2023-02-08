@@ -18,7 +18,7 @@ def get_econ_info(indicators: dict={'cli': 'USALOLITONOSTSAM',
         temp.append(target_df)
 
     econ_df = pd.concat(temp, axis = 1)
-    econ_df.columns = indicators
+    econ_df.columns = indicators.keys()
 
     return econ_df
 
