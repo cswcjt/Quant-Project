@@ -2,6 +2,7 @@
 quant/backtest/backtest.py
 quant/backtest/metric.py
 quant/backtest/test.ipynb
+quant/price/Prophet_Class.py
 #########################3
 
 # Created by https://www.toptal.com/developers/gitignore/api/python,jupyternotebooks,macos,windows
