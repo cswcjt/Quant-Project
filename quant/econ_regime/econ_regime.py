@@ -46,4 +46,15 @@ def business_cycle(starting_date: str='1992-12-01', recession: bool=False) -> pd
         
     return regime_df
         
+def asset_indicators(asset_tickers: list=['SPY','TLT', 'GSG', 'VNQ', 'UUP']):
     
+    asset_list = []
+    for ticker in asset_tickers:
+        asset_price = yf.download(ticker)['Adj Close']
+        asset_price.index = pd.to_datetime(pd.to_datetime(asset_price.index).date)
+        asset_list.append(asset_price)
+        asset_df = pd.concat(asset_list, axis=1)
+    
+    asset_df.columns = asset_tickers
+    
+    return asset_df
