@@ -1,4 +1,3 @@
-import json
 import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns
@@ -8,8 +7,14 @@ import yfinance as yf
 from itertools import groupby, chain
 from typing import Union
 
+## Project Path 추가
+import sys
+from pathlib import Path
 
-import yfinance as yf
+PJT_PATH = Path(__file__).parents[2]
+sys.path.append(str(PJT_PATH))
+
+from scaling import convert_freq, annualize_scaler
 
 class Metric:
     def __init__(self, portfolio: Union[pd.DataFrame, pd.Series],
@@ -27,51 +32,12 @@ class Metric:
         else:
             raise TypeError()
         
-        convert_freq = {
-            'day': 'day',
-            'D': 'day',
-            'daily': 'day',
-            'week': 'week',
-            'W': 'week',
-            'weekly': 'week',
-            'month': 'month',
-            'M': 'month',
-            'monthly': 'month',
-            'quarter': 'quarter',
-            'Q': 'quarter',
-            'quarterly': 'quarter',
-            'half-year': 'half-year',
-            'HY': 'half-year',
-            'half-yearly': 'half-year',
-            'year': 'year',
-            'Y': 'year',
-            'yearly': 'year',
-        }
-        
-        self.freq = convert_freq[freq]
-        self.param = self.annualize_scaler(self.freq)
+        self.freq = convert_freq(freq)
+        self.param = annualize_scaler(self.freq)
         self.freq2day = int(252 / self.param)
         
         self.rets = self.portfolio.pct_change().fillna(0)
         self.cum_rets = (1 + self.rets).cumprod()
-    
-    def annualize_scaler(self, freq: str) -> int:        
-        # 주기에 따른 연율화 파라미터 반환해주는 함수
-        annualize_scale_dict = {
-            'day': 252,
-            'week': 52,
-            'month': 12,
-            'quarter': 4,
-            'half-year': 2,
-            'year': 1
-        }
-        try:
-            scale: int = annualize_scale_dict[freq]
-        except:
-            raise Exception("freq is only ['day', 'week', 'month', \
-                'quarter', 'half-year', 'year']")
-        
-        return scale
     
     def calc_lookback(self, lookback, scale) -> int:
         # lookback을 주기에 맞게 변환해주는 함수
@@ -435,12 +401,13 @@ class Metric:
     
     @external
     def print_report(self, returns: pd.Series=None, delta: float=0.01):
-        print(f'CAGR: {self.CAGR(returns):.2%}')
-        print(f'Annualized Volatility: {self.annualized_volatility(returns):.2%}')
+        print(f'CAGR: {self.CAGR(returns):.2f}')
+        print(f'CAGR: {self.CAGR(returns):.2f}')
+        print(f'Annualized Volatility: {self.annualized_volatility(returns):.2f}')
         print(f'Skewness: {self.skewness(returns):.2f}')
         print(f'Kurtosis: {self.kurtosis(returns):.2f}')
         print(f'Max Drawdown: {self.MDD(returns):.2%}')
-        print(f'Max Drawdown Duration: {self.MDD_duration(returns):.0f} days')
+        print(f'Max Drawdown Duration: {self.MDD_duration(returns):.2f} days')
         print(f'Annualized Sharp Ratio: {self.sharp_ratio(returns):.2f}')
         print(f'Annualized Sortino Ratio: {self.sortino_ratio(returns):.2f}')
         print(f'Annualized Calmar Ratio: {self.calmar_ratio(returns):.2f}')
@@ -454,27 +421,30 @@ class Metric:
     @external        
     def numeric_metric(self, returns: pd.Series=None,
                        delta: float=0.01, dict: bool=True) -> Union[dict, pd.Series]:
-        result = {'CAGR': self.CAGR(returns),
-                  'Annualized Volatility': self.annualized_volatility(returns),
-                  'Skewness': self.skewness(returns),
-                  'Kurtosis': self.kurtosis(returns),
-                  'Max Drawdown': self.MDD(returns),
-                  'Max Drawdown Duration': self.MDD_duration(returns),
-                  'Annualized Sharp Ratio': self.sharp_ratio(returns),
-                  'Annualized Sortino Ratio': self.sortino_ratio(returns),
-                  'Annualized Calmar Ratio': self.calmar_ratio(returns),
-                  'Annualized VaR': self.VaR(returns, delta=delta),
-                  'Annualized VaR Ratio': self.VaR_ratio(returns, delta=delta),
-                  'Annualized CVaR': self.CVaR(returns, delta=delta),
-                  'Annualized CVaR Ratio': self.CVaR_ratio(returns, delta=delta),
-                  'Annualized hit Ratio': self.hit_ratio(returns),
-                  'Annualized GtP Ratio': self.GtP_ratio(returns)}
+        result = {
+            'returns': f'{self.total_returns(returns):.2f}',
+            'CAGR': f'{self.CAGR(returns):.2f}',
+            'volatility': f'{self.annualized_volatility(returns):.2f}',
+            'skewness': f'{self.skewness(returns):.2f}',
+            'kurtosis': f'{self.kurtosis(returns):.2f}',
+            'MDD': f'{self.MDD(returns):.2f}',
+            'MDD_duration': f'{self.MDD_duration(returns):.2f}',
+            'sharp': f'{self.sharp_ratio(returns):.2f}',
+            'sortino': f'{self.sortino_ratio(returns):.2f}',
+            'calmar': f'{self.calmar_ratio(returns):.2f}',
+            'VaR': f'{self.VaR(returns, delta=delta):.2f}',
+            'VaR_ratio': f'{self.VaR_ratio(returns, delta=delta):.2f}',
+            'CVaR': f'{self.CVaR(returns, delta=delta):.2f}',
+            'CVaR_ratio': f'{self.CVaR_ratio(returns, delta=delta):.2f}',
+            'hit': f'{self.hit_ratio(returns):.2f}',
+            'GtP': f'{self.GtP_ratio(returns):.2f}'
+        }
         return result if dict else pd.Series(result)
     
     def rolling_metric(self, returns: pd.Series=None,
-                              lookback: Union[float, int]=1,
-                              MDD_lookback: Union[float, int]=3,
-                              delta: float=0.01) -> pd.DataFrame:
+                       lookback: Union[float, int]=1,
+                       MDD_lookback: Union[float, int]=3,
+                       delta: float=0.01) -> pd.DataFrame:
         rolling = True
         
         dd = self.drawdown(returns)
@@ -527,7 +497,9 @@ class Metric:
         sns.lineplot(data=report, x='Date', y='GtP', ax=ax[3][1])
         ax[3][1].set_title('1-year GtP Ratio')
         plt.show()
-                
+
+import yfinance as yf
+
 if __name__ == '__main__':
     data = yf.download('SPY TLT', start='2002-07-30')['Adj Close']
     test = Metric(data)
