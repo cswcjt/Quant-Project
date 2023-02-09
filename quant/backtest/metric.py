@@ -119,12 +119,15 @@ class Metric:
     def CAGR(self, returns: pd.Series=None) -> float:
         try:
             return returns.add(1).prod() ** (self.param / len(returns)) - 1
-        except AttributeError:
+        except Exception:
             return returns.apply(lambda x: self.CAGR(x))
     
     @external
     def annualized_volatility(self, returns: pd.Series=None) -> float:
-        return returns.std() * np.sqrt(self.param / len(returns))
+        try:
+            return returns.std() * np.sqrt(self.param / len(returns))
+        except Exception:
+            return returns.apply(lambda x: self.annualized_volatility(x))
     
     @rolling
     def sharp_ratio(self, returns: pd.Series,
