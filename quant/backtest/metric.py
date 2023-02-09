@@ -27,13 +27,6 @@ class Metric:
         else:
             raise TypeError()
         
-        self.param = self.annualize_scaler(freq)
-        self.freq2day = int(252 / self.param)
-        
-        self.rets = self.portfolio.pct_change().fillna(0)
-        self.cum_rets = (1 + self.rets).cumprod()
-    
-    def annualize_scaler(self, freq: str) -> int:
         convert_freq = {
             'day': 'day',
             'D': 'day',
@@ -54,6 +47,15 @@ class Metric:
             'Y': 'year',
             'yearly': 'year',
         }
+        
+        self.freq = convert_freq[freq]
+        self.param = self.annualize_scaler(self.freq)
+        self.freq2day = int(252 / self.param)
+        
+        self.rets = self.portfolio.pct_change().fillna(0)
+        self.cum_rets = (1 + self.rets).cumprod()
+    
+    def annualize_scaler(self, freq: str) -> int:        
         # 주기에 따른 연율화 파라미터 반환해주는 함수
         annualize_scale_dict = {
             'day': 252,
@@ -64,7 +66,7 @@ class Metric:
             'year': 1
         }
         try:
-            scale: int = annualize_scale_dict[convert_freq[freq]]
+            scale: int = annualize_scale_dict[freq]
         except:
             raise Exception("freq is only ['day', 'week', 'month', \
                 'quarter', 'half-year', 'year']")
