@@ -10,174 +10,37 @@ from typing import *
 
 import yfinance as yf
 
+## Project Path 추가
+import sys
+from pathlib import Path
+
+PJT_PATH = Path(__file__).parents[2]
+sys.path.append(str(PJT_PATH))
+
+from price.price_processing import get_price, add_cash, rebal_dates, price_on_rebal, calculate_portvals, port_cum_rets
+from backtest.metric import Metric
+from strategy.factors.momentum import MomentumFactor
+from strategy.optimize.cross_sectional import Equalizer, Optimization
+from strategy.optimize.time_series import TimeSeries
+
 class BackTest:
     # 초기화 함수
-    def __init__(self, price: pd.DataFrame, param: Union[int, str]='day', cost=0.0005):
-        # 주기에 따른 연율화 패러미터
-        annualize_scale_dict = {
-            'day': 252,
-            'week': 52,
-            'month': 12,
-            'quarter': 4,
-            'half-year': 2,
-            'year': 1,
-        }
-        
-        # 포트폴리오 가격테이블
-        self.price: pd.DataFrame = price
-        
-        # 연율화 패러미터 (Manual + Periodical)
-        self.param: int = annualize_scale_dict[param] if isinstance(param, str) else param
+    def __init__(self, start_date: str, end_date: str, universe: List[str], 
+                 rebal_freq: str, rebal_method: str, 
+                 factor: str, factor_params: Dict[str, Any], 
+                 opt_method: str, opt_params: Dict[str, Any]):
+        self.start_date = start_date
+        self.end_date = end_date
+        self.universe = universe
+        self.rebal_freq = rebal_freq
+        self.rebal_method = rebal_method
+        self.factor = factor
+        self.factor_params = factor_params
+        self.opt_method = opt_method
+        self.opt_params = opt_params
 
-        # 일별 수익률
-        if isinstance(self.price, pd.Series):
-            self.rets: pd.Series = price.pct_change().dropna()
-        elif isinstance(self.price, pd.DataFrame):
-            self.rets: pd.Series = price.sum(axis=1).pct_change().dropna()
-
-        # 기대수익률
-        self.er = np.array(self.rets * self.param)
-
-        # 변동성
-        self.vol = np.array(self.rets.rolling(self.param).std() * np.sqrt(self.param))
-
-        # 공분산행렬
-        cov = self.rets.rolling(self.param).cov().dropna() * self.param
-        self.cov = cov.values.reshape(int(cov.shape[0]/cov.shape[1]), cov.shape[1], cov.shape[1])
-
-        # 거래비용
-        self.cost = cost
+        self.factor_obj = self.get_factor()
+        self.opt_obj = self.get_opt()
     
-    # 거래비용 함수
-    def transaction_cost(self, weights_df, rets_df, cost=0.0005):
-        # 이전 기의 투자 가중치
-        prev_weights_df = (weights_df.shift(1).fillna(0) * (1 + rets_df.iloc[self.param-1:,:])) \
-        .div((weights_df.shift(1).fillna(0) * (1 + rets_df.iloc[self.param-1:,:])).sum(axis=1), axis=0)
-
-        # 거래비용 데이터프레임
-        cost_df = abs(weights_df - prev_weights_df) * cost
-        cost_df.fillna(0, inplace=True)
-
-        return cost_df
-
-    # 백테스팅 실행 함수
-    def run(self, cs_model='auto', ts_model='auto', cost=0.005):
-        # 빈 딕셔너리
-        backtest_dict = {}
-        
-        # 일별 수익률 데이터프레임
-        rets = self.rets.copy()
-        
-        # 횡적 배분 모델 선택 및 실행
-        for i, index in enumerate(rets.index[self.param-1:]):
-            if cs_model == 'EW':
-                backtest_dict[index] = self.CrossSectional().ew(self.er[i])
-            elif cs_model == 'MSR':
-                backtest_dict[index] = self.CrossSectional().msr(self.er[i], self.cov[i])
-            elif cs_model == 'GMV':
-                backtest_dict[index] = self.CrossSectional().gmv(self.cov[i])
-            elif cs_model == 'MDP':
-                backtest_dict[index] = self.CrossSectional().mdp(self.vol[i], self.cov[i])
-            elif cs_model == 'EMV':
-                backtest_dict[index] = self.CrossSectional().emv(self.vol[i])
-            elif cs_model == 'RP':
-                backtest_dict[index] = self.CrossSectional().rp(self.cov[i])
-            elif cs_model == 'auto':
-                backtest_dict[index] = self.CrossSectional().auto(self.er[i], self.cov[i])
-        
-        # 횡적 가중치 데이터프레임
-        cs_weights = pd.DataFrame(list(backtest_dict.values()), index=backtest_dict.keys(), columns=rets.columns)
-        cs_weights.fillna(0, inplace=True)
-
-        # 횡적 배분 모델 자산 수익률
-        cs_rets = cs_weights.shift(1) * rets.iloc[self.param-1:,:]
-
-        # 횡적 배분 모델 포트폴리오 수익률
-        cs_port_rets = cs_rets.sum(axis=1)
-        
-        # 종적 배분 모델 선택 및 실행
-        if ts_model == 'VT':
-            ts_weights = (self.TimeSeries().vt(cs_port_rets, self.param))
-        elif ts_model == 'CVT':
-            ts_weights = (self.TimeSeries().cvt(cs_port_rets, self.param))
-        elif ts_model == 'KL':
-            ts_weights = (self.TimeSeries().kl(cs_port_rets, self.param))
-        elif ts_model == 'CPPI':
-            ts_weights = (self.TimeSeries().cppi(cs_port_rets))
-        elif ts_model == 'auto':
-            ts_weights = (self.TimeSeries().auto(cs_port_rets, self.param))
-        elif ts_model == None:
-            ts_weights = 1
-
-        # 최종 포트폴리오 투자 가중치
-        port_weights = cs_weights.multiply(ts_weights, axis=0)
-
-        # 거래비용 데이터프레임
-        cost = self.transaction_cost(port_weights, rets)
-
-        # 최종 포트폴리오 자산별 수익률
-        port_asset_rets = port_weights.shift() * rets - cost
-
-        # 최종 포트폴리오 수익률
-        port_rets = port_asset_rets.sum(axis=1)
-        port_rets.index = pd.to_datetime(port_rets.index).strftime("%Y-%m-%d")
-
-        return port_weights, port_asset_rets, port_rets
-
-    # 성과분석 수행 함수
-    def performance_analytics(self, port_weights, port_asset_rets, port_rets, qs_report=False):
-        
-        # 자산별 투자 가중치
-        plt.figure(figsize=(12, 7))
-        port_weights['Cash'] = 1 - port_weights.sum(axis=1)
-        plt.stackplot(port_weights.index, port_weights.T, labels=port_weights.columns)
-        plt.title('Portfolio Weights')
-        plt.xlabel('Date')
-        plt.ylabel('Weights')
-        plt.legend(loc='upper left')
-        plt.show()
-
-        # 자산별 누적 수익률
-        plt.figure(figsize=(12, 7))
-        plt.plot((1 + port_asset_rets).cumprod() - 1)
-        plt.title('Underlying Asset Performance')
-        plt.xlabel('Date')
-        plt.ylabel('Returns')
-        plt.legend(port_asset_rets.columns, loc='upper left')
-        plt.show()
-
-        # 포트폴리오 누적 수익률
-        plt.figure(figsize=(12, 7))
-        plt.plot((1 + port_rets).cumprod() - 1)
-        plt.title('Portfolio Performance')
-        plt.xlabel('Date')
-        plt.ylabel('Returns')
-        plt.show()
-
-        # QuantStats 성과분석 리포트 작성
-        if qs_report == True:
-            port_rets.index = pd.to_datetime(port_rets.index)
-            qs.reports.html(port_rets, output='./file-name.html')
-
-if __name__ == '__main__':
-    def get_etf_price_data():
-        tickers = ['XLB', 'XLE', 'XLF', 'XLI', 'XLK', 'XLP', 'XLU', 'XLV', 'XLY']
-        etf = yf.Tickers(tickers)
-        data = etf.history(start='2010-01-01', actions=False)
-        data.drop(['Open', 'High', 'Low', 'Volume'], inplace=True, axis=1)
-        data = data.droplevel(0, axis=1)
-        data.ffill(inplace=True)
-        df = data.resample('D').last()
-        return df
-
-    df = get_etf_price_data()
-
-    # 엔진 초기화
-    engine = BackTest(df)
-    
-    # 백테스팅 실행
-    res = engine.run(cs_model='RP', ts_model='VT', cost=0.0005)
-    
-    port_weights = res[0]
-    port_asset_rets = res[1]
-    port_rets = res[2]
+    def run(self):
+        pass

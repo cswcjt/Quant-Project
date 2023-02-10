@@ -7,8 +7,14 @@ import yfinance as yf
 from itertools import groupby, chain
 from typing import Union
 
+## Project Path 추가
+import sys
+from pathlib import Path
 
-import yfinance as yf
+PJT_PATH = Path(__file__).parents[2]
+sys.path.append(str(PJT_PATH))
+
+from scaling import convert_freq, annualize_scaler
 
 class Metric:
     def __init__(self, portfolio: Union[pd.DataFrame, pd.Series],
@@ -26,29 +32,12 @@ class Metric:
         else:
             raise TypeError()
         
-        self.param = self.annualize_scaler(freq)
+        self.freq = convert_freq(freq)
+        self.param = annualize_scaler(self.freq)
         self.freq2day = int(252 / self.param)
         
         self.rets = self.portfolio.pct_change().fillna(0)
         self.cum_rets = (1 + self.rets).cumprod()
-    
-    def annualize_scaler(self, param: str) -> int:
-        # 주기에 따른 연율화 파라미터 반환해주는 함수
-        annualize_scale_dict = {
-            'day': 252,
-            'week': 52,
-            'month': 12,
-            'quarter': 4,
-            'half-year': 2,
-            'year': 1
-        }
-        try:
-            scale: int = annualize_scale_dict[param]
-        except:
-            raise Exception("freq is only ['day', 'week', 'month', \
-                'quarter', 'half-year', 'year']")
-        
-        return scale
     
     def calc_lookback(self, lookback, scale) -> int:
         # lookback을 주기에 맞게 변환해주는 함수
@@ -93,15 +82,18 @@ class Metric:
         return wrapper
     
     @external
-    def annualized_return(self, returns: pd.Series=None) -> float:
+    def CAGR(self, returns: pd.Series=None) -> float:
         try:
             return returns.add(1).prod() ** (self.param / len(returns)) - 1
-        except AttributeError:
-            return returns.apply(lambda x: self.annualized_return(x))
+        except Exception:
+            return returns.apply(lambda x: self.CAGR(x))
     
     @external
     def annualized_volatility(self, returns: pd.Series=None) -> float:
-        return returns.std() * np.sqrt(self.param)
+        try:
+            return returns.std() * np.sqrt(self.param / len(returns))
+        except Exception:
+            return returns.apply(lambda x: self.annualized_volatility(x))
     
     @rolling
     def sharp_ratio(self, returns: pd.Series,
@@ -129,7 +121,7 @@ class Metric:
                 - Series -> (lookback)년 롤링 연율화 샤프지수
                 - float -> 연율화 샤프지수
         '''
-        return (self.annualized_return(returns) - yearly_rfr)/self.annualized_volatility(returns)
+        return (self.CAGR(returns) - yearly_rfr) / self.annualized_volatility(returns)
     
     @rolling
     def sortino_ratio(self, returns: pd.Series=None,
@@ -164,7 +156,7 @@ class Metric:
             except TypeError:
                 return returns.apply(lambda x: downside_std(x))
         
-        return self.annualized_return(returns) - yearly_rfr / downside_std(returns)
+        return (self.CAGR(returns) - yearly_rfr) / downside_std(returns)
 
     @external
     def calmar_ratio(self, returns: pd.Series=None,
@@ -201,7 +193,7 @@ class Metric:
             returns = returns.rolling(lookback)
             dd = dd.rolling(MDD_lookback)
         
-        calmar = - self.annualized_return(returns) / dd.min()
+        calmar = - self.CAGR(returns) / dd.min()
         return calmar
     
     @external
@@ -409,12 +401,13 @@ class Metric:
     
     @external
     def print_report(self, returns: pd.Series=None, delta: float=0.01):
-        print(f'Annualized Return: {self.annualized_return(returns):.2%}')
-        print(f'Annualized Volatility: {self.annualized_volatility(returns):.2%}')
+        print(f'CAGR: {self.CAGR(returns):.2f}')
+        print(f'CAGR: {self.CAGR(returns):.2f}')
+        print(f'Annualized Volatility: {self.annualized_volatility(returns):.2f}')
         print(f'Skewness: {self.skewness(returns):.2f}')
         print(f'Kurtosis: {self.kurtosis(returns):.2f}')
         print(f'Max Drawdown: {self.MDD(returns):.2%}')
-        print(f'Max Drawdown Duration: {self.MDD_duration(returns):.0f} days')
+        print(f'Max Drawdown Duration: {self.MDD_duration(returns):.2f} days')
         print(f'Annualized Sharp Ratio: {self.sharp_ratio(returns):.2f}')
         print(f'Annualized Sortino Ratio: {self.sortino_ratio(returns):.2f}')
         print(f'Annualized Calmar Ratio: {self.calmar_ratio(returns):.2f}')
@@ -424,30 +417,34 @@ class Metric:
         print(f'Annualized CVaR Ratio: {self.CVaR_ratio(returns, delta=delta):.2f}')
         print(f'Annualized hit Ratio: {self.hit_ratio(returns):.2f}')
         print(f'Annualized GtP Ratio: {self.GtP_ratio(returns):.2f}')
-        
+    
+    @external        
     def numeric_metric(self, returns: pd.Series=None,
                        delta: float=0.01, dict: bool=True) -> Union[dict, pd.Series]:
-        result = {'Annualized Return': self.annualized_return(returns),
-                  'Annualized Volatility': self.annualized_volatility(returns),
-                  'Skewness': self.skewness(returns),
-                  'Kurtosis': self.kurtosis(returns),
-                  'Max Drawdown': self.MDD(returns),
-                  'Max Drawdown Duration': self.MDD_duration(returns),
-                  'Annualized Sharp Ratio': self.sharp_ratio(returns),
-                  'Annualized Sortino Ratio': self.sortino_ratio(returns),
-                  'Annualized Calmar Ratio': self.calmar_ratio(returns),
-                  'Annualized VaR': self.VaR(returns, delta=delta),
-                  'Annualized VaR Ratio': self.VaR_ratio(returns, delta=delta),
-                  'Annualized CVaR': self.CVaR(returns, delta=delta),
-                  'Annualized CVaR Ratio': self.CVaR_ratio(returns, delta=delta),
-                  'Annualized hit Ratio': self.hit_ratio(returns),
-                  'Annualized GtP Ratio': self.GtP_ratio(returns)}
+        result = {
+            'returns': f'{self.total_returns(returns):.2f}',
+            'CAGR': f'{self.CAGR(returns):.2f}',
+            'volatility': f'{self.annualized_volatility(returns):.2f}',
+            'skewness': f'{self.skewness(returns):.2f}',
+            'kurtosis': f'{self.kurtosis(returns):.2f}',
+            'MDD': f'{self.MDD(returns):.2f}',
+            'MDD_duration': f'{self.MDD_duration(returns):.2f}',
+            'sharp': f'{self.sharp_ratio(returns):.2f}',
+            'sortino': f'{self.sortino_ratio(returns):.2f}',
+            'calmar': f'{self.calmar_ratio(returns):.2f}',
+            'VaR': f'{self.VaR(returns, delta=delta):.2f}',
+            'VaR_ratio': f'{self.VaR_ratio(returns, delta=delta):.2f}',
+            'CVaR': f'{self.CVaR(returns, delta=delta):.2f}',
+            'CVaR_ratio': f'{self.CVaR_ratio(returns, delta=delta):.2f}',
+            'hit': f'{self.hit_ratio(returns):.2f}',
+            'GtP': f'{self.GtP_ratio(returns):.2f}'
+        }
         return result if dict else pd.Series(result)
     
     def rolling_metric(self, returns: pd.Series=None,
-                              lookback: Union[float, int]=1,
-                              MDD_lookback: Union[float, int]=3,
-                              delta: float=0.01) -> pd.DataFrame:
+                       lookback: Union[float, int]=1,
+                       MDD_lookback: Union[float, int]=3,
+                       delta: float=0.01) -> pd.DataFrame:
         rolling = True
         
         dd = self.drawdown(returns)
@@ -500,7 +497,9 @@ class Metric:
         sns.lineplot(data=report, x='Date', y='GtP', ax=ax[3][1])
         ax[3][1].set_title('1-year GtP Ratio')
         plt.show()
-                
+
+import yfinance as yf
+
 if __name__ == '__main__':
     data = yf.download('SPY TLT', start='2002-07-30')['Adj Close']
     test = Metric(data)
