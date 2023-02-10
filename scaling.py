@@ -1,3 +1,9 @@
+"""
+사용 예시
+
+self.freq = convert_freq(freq)
+self.param = annualize_scaler(self.freq)
+"""
 def convert_freq(freq: str) -> str:
     convert = {
         'day': 'day',
@@ -12,9 +18,10 @@ def convert_freq(freq: str) -> str:
         'quarter': 'quarter',
         'Q': 'quarter',
         'quarterly': 'quarter',
-        'half-year': 'half-year',
-        'HY': 'half-year',
-        'half-yearly': 'half-year',
+        'halfyear': 'halfyear',
+        'half-year': 'halfyear',
+        'HY': 'halfyear',
+        'half-yearly': 'halfyear',
         'year': 'year',
         'Y': 'year',
         'yearly': 'year',
@@ -28,7 +35,7 @@ def annualize_scaler(freq: str) -> int:
         'week': 52,
         'month': 12,
         'quarter': 4,
-        'half-year': 2,
+        'halfyear': 2,
         'year': 1
     }
     try:
