@@ -90,10 +90,7 @@ class Metric:
     
     @external
     def annualized_volatility(self, returns: pd.Series=None) -> float:
-        try:
-            return returns.std() * np.sqrt(self.param / len(returns))
-        except Exception:
-            return returns.apply(lambda x: self.annualized_volatility(x))
+        return returns.std() * np.sqrt(self.param)
     
     @rolling
     def sharp_ratio(self, returns: pd.Series,
@@ -401,9 +398,9 @@ class Metric:
     
     @external
     def print_report(self, returns: pd.Series=None, delta: float=0.01):
-        print(f'CAGR: {self.CAGR(returns):.2f}')
-        print(f'CAGR: {self.CAGR(returns):.2f}')
-        print(f'Annualized Volatility: {self.annualized_volatility(returns):.2f}')
+        print(f'Total Returns: {100 * self.total_returns(returns):.2f}%')
+        print(f'CAGR: {100 * self.CAGR(returns):.2f}%')
+        print(f'Annualized Volatility: {100 * self.annualized_volatility(returns):.2f}%')
         print(f'Skewness: {self.skewness(returns):.2f}')
         print(f'Kurtosis: {self.kurtosis(returns):.2f}')
         print(f'Max Drawdown: {self.MDD(returns):.2%}')
