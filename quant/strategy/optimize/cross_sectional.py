@@ -18,7 +18,9 @@ class Equalizer:
     ew_weight = test_ew_weight.ew()
     """
     
-    def __init__(self, signal: pd.DataFrame, rebal_price: pd.DataFrame, param: int) -> pd.DataFrame:
+    def __init__(self, signal: pd.DataFrame,
+                 rebal_price: pd.DataFrame, param: int
+                 ) -> pd.DataFrame:
         """__init__
         
         Args:
@@ -51,7 +53,7 @@ class Equalizer:
         # 연율화 공분산행렬: 12개월
         self.cov = self.rets.cov().dropna() * self.param
 
-    def eps(self, weights, eps=1e-6):
+    def epsilon(self, weights, eps=1e-6):
         data = weights.copy()
         eliminate = lambda x: 0 if abs(x)<eps else x
         if isinstance(data, pd.DataFrame):
@@ -71,7 +73,7 @@ class Equalizer:
         beta_signal = beta_signal.replace({0:1})
         
         weights = beta_signal.apply(lambda series: series / series.sum(), axis=1)
-        weights = self.eps(weights)
+        weights = self.epsilon(weights)
         
         return weights
         
@@ -84,7 +86,7 @@ class Equalizer:
             weights: 투자 시그널이 존재하는 종목에만 동일한 비중으로 투자할 때의 weight df
         """
         weights = self.signal.apply(lambda series: series / series.sum(), axis=1)
-        weights = self.eps(weights)
+        weights = self.epsilon(weights)
         
         return weights
 
@@ -98,7 +100,7 @@ class Equalizer:
         temp_weights = self.vol * self.signal
         weights = temp_weights.apply(lambda series: series / series.sum(), axis=1)
         
-        weights = self.eps(weights)
+        weights = self.epsilon(weights)
 
         return weights
 
@@ -257,7 +259,7 @@ class Optimization(Equalizer):
         cs_weight = self.add_total_signal.reset_index().apply(self.target_assets, axis=1).fillna(0)
         cs_weight.index = self.add_total_signal.index
         cs_weight = cs_weight.iloc[self.param:,]
-        final_weight = self.eps(cs_weight)
+        final_weight = self.epsilon(cs_weight)
         
         return final_weight
 
