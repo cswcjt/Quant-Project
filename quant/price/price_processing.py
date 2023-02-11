@@ -97,26 +97,28 @@ def rebal_dates(price: pd.DataFrame, period: str) -> list:
         list -> 리밸날짜를 담은 datetimeindex 
     """
     period = convert_freq(period)
-    
-    _price = price.reset_index()
-    if _price.columns[0] != 'date_time':
-        _price.rename(columns={_price.columns[0]: 'date_time'}, inplace=True)
+    last_date = price.index[-1]
     
     if period == "month":
-        groupby = [_price['date_time'].dt.year, _price['date_time'].dt.month]
+        _price = price.resample('M').last()
         
     elif period == "quarter":
-        groupby = [_price['date_time'].dt.year, _price['date_time'].dt.quarter]
+        _price = price.resample('Q').last()
         
     elif period == "halfyear":
-        groupby = [_price['date_time'].dt.year, _price['date_time'].dt.month // 7]
+        _price = price.resample('Q').last()
+        _price = _price[_price.index.month.isin([6, 12])]
         
     elif period == "year":
-        groupby = [_price['date_time'].dt.year, _price['date_time'].dt.year]
-        
-    rebal_dates = pd.to_datetime(_price.groupby(groupby)['date_time'].last().values)
+        _price = price.resample('Y').last()
     
-    return rebal_dates
+    if _price.index[-1] > last_date:
+        if isinstance(_price, pd.DataFrame):
+            _price = _price.iloc[:-1, :]
+        else:
+            _price = _price[:-1]
+        
+    return _price.index
 
 def price_on_rebal(price: pd.DataFrame, rebal_dates: list) -> pd.DataFrame:
     """Prince Info on Rebalancing Date
