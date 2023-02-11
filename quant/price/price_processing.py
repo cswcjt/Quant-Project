@@ -5,6 +5,15 @@ import pandas as pd
 import numpy as np
 from functools import reduce
 
+## Project Path 추가
+import sys
+from pathlib import Path
+
+PJT_PATH = Path(__file__).parents[3]
+sys.path.append(str(PJT_PATH))
+
+from scaling import convert_freq, annualize_scaler
+
 def get_price(tickers: list, period: str, interval: str, start_date: str=None) -> pd.DataFrame:
     """Download Price Data
 
@@ -87,8 +96,11 @@ def rebal_dates(price: pd.DataFrame, period: str) -> list:
     Returns:
         list -> 리밸날짜를 담은 datetimeindex 
     """
+    period = convert_freq(period)
     
     _price = price.reset_index()
+    if _price.columns[0] != 'date_time':
+        _price.rename(columns={_price.columns[0]: 'date_time'}, inplace=True)
     
     if period == "month":
         groupby = [_price['date_time'].dt.year, _price['date_time'].dt.month]
