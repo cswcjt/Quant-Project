@@ -1,9 +1,7 @@
-
 import pandas as pd
 import statsmodels.api as sm
-import yfinance as yf
 
-class Beta():
+class Beta:
     """_summary_
 
     자산의 베타값을 계산하는 클래스
@@ -73,13 +71,13 @@ class Beta():
 
         return beta_df
     
-
     def beta(self) -> pd.DataFrame:
         """_summary_
 
         Returns:
             pd.DataFrame: 베타 시그널 df
         """
+        
         def assign_value(series):
             isin_series_index = series.loc[beta_index].index
             series1 = pd.Series([1] * len(isin_series_index), index=isin_series_index.tolist())
@@ -97,8 +95,9 @@ class Beta():
             
             beta_index = Beta(equity_universe=df, benchmark_ticker=self.benchmart_ticker).cal_beta().sort_values(by='beta', ascending=False).head(self.n_sel).index
 
-            
             signal_list.append(df.resample('M').last().apply(assign_value, axis=1).iloc[-1])
-    
-        return pd.concat(signal_list, axis=1).T
+
+        signal_df = pd.concat(signal_list, axis=1).T 
+        
+        return pd.concat(signal_df, axis=1).T
     
