@@ -97,6 +97,8 @@ def rebal_dates(price: pd.DataFrame, period: str) -> list:
         list -> 리밸날짜를 담은 datetimeindex 
     """
     period = convert_freq(period)
+    price.index = pd.to_datetime(price.index)
+        
     last_date = price.index[-1]
         
     _price = price.reset_index()
