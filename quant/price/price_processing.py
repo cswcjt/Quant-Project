@@ -190,8 +190,20 @@ def calculate_portvals(price_df: pd.DataFrame, weight_df: pd.DataFrame, signal_d
         individual_port_val_df = reduce(lambda x, y: pd.concat([x, y.iloc[1:]]), individual_port_val_df_list)
         return individual_port_val_df
 
-def port_cum_rets(calculate_portvals, N=1):
-    portval_df = calculate_portvals.sum(axis=1) 
-    port_daily_rets = portval_df.pct_change(N, fill_method=None).iloc[N-1:].fillna(0)
-
-    return (1 + port_daily_rets).cumprod()
+def port_cum_rets(portvals_df: pd.DataFrame, cumulative: bool=True) -> pd.Series:
+    """Calculate Cumulative Returns
+    
+    portvals_df (pd.DataFrame):
+        - DataFrame -> 포트폴리오의 일별 가치변화를 담은 df
+    cumulative (bool):
+        - bool -> 누적수익률을 계산할지, 일별 수익률을 계산할지 설정
+        
+    return (pd.Series):
+        - Series -> 누적수익률 or 일별 수익률
+    """
+    
+    if cumulative:
+        return portvals_df.sum(axis=1) 
+    
+    else: 
+        return portvals_df.sum(axis=1).pct_change().fillna(0)

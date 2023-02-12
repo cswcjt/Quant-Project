@@ -1,12 +1,16 @@
 import pandas as pd
 import numpy as np
-from datetime import date, timedelta
+import matplotlib.pyplot as plt
+from pandas.tseries.offsets import *
+
+from backtest.metric import Metric
+from price.price_processing import *
 
 import yfinance as yf
 from fredapi import Fred
 
 def business_cycle(starting_date: str='1992-12-01', recession: bool=False) -> pd.DataFrame:
-    with open('../fredapikey.txt', 'r') as f:
+    with open('../quant/fredapikey.txt', 'r') as f:
         fred_key = f.read()
         
     fred = Fred(api_key=fred_key)
@@ -58,3 +62,131 @@ def asset_indicators(asset_tickers: list=['SPY','TLT', 'GSG', 'VNQ', 'UUP']):
     asset_df.columns = asset_tickers
     
     return asset_df
+
+########################################################################################
+def factor_with_regime(regime_df: pd.DataFrame, factor_monthly_rets: pd.Series, factor_rets: str) -> pd.DataFrame:
+    """_summary_
+
+    Args:
+        regime_df (pd.DataFrame): 
+            - 각 월별로 1개의 regime만 1로 표시한 데이터프레임
+        factor_monthly_rets (pd.Series):
+            - 각 월별로 factor return을 가진 시리즈
+        factor_name (str): 
+            - factor의 이름 + rets: ex) 'mom_rets'
+
+    Returns:
+        pd.DataFrame: 
+    """
+    
+    fr_with_rg = pd.concat([factor_monthly_rets, regime_df], axis=1)
+    fr_with_rg.columns = regime_df.columns.insert(0, factor_rets)
+    
+    return fr_with_rg
+
+def check_factor_with_regime(factor_with_regime: pd.DataFrame, factor_rets: str, freq: str, plot: bool=False):
+    """_summary_
+
+    Args:
+        factor_with_regime (pd.DataFrame): 
+            - factor_with_regime()의 아웃풋 df
+        factor_rets (str): 
+            - factor_with_regime()의 변수 중 factor_rets와 동일한 스트링
+        freq (str):     
+            - Metric 클래스의 변수로 사용되는 freq: 'day', 'month', 'year', etc.
+        plot (bool, optional): 
+            - plt 아니면 Metric 중에 하나만 선택. Defaults to False.
+    """
+    
+    each_regime = factor_with_regime.columns[factor_with_regime.columns != f'{factor_rets}']
+    
+    for regime in each_regime:
+
+        if plot:
+            print((1 + factor_with_regime[factor_rets].mul(factor_with_regime[regime], axis=0)).cumprod().plot(title=f'{factor_rets} with {regime}', lw=1))
+            plt.show()
+        
+        else:
+            print(f'{factor_rets} with {regime}')
+            Metric(portfolio=(1 + factor_with_regime[factor_rets]).cumprod(), freq=freq).print_report()
+            print()
+            
+            
+def multi_asset_df(asset_df: pd.DataFrame, factor_with_regime_df: pd.DataFrame) -> pd.DataFrame:
+    """_summary_
+
+    Args:
+        asset_df (pd.DataFrame): 
+            - 벤치마크와 대체자산을 포함한 데이터프레임
+        factor_with_regime_df (pd.DataFrame): 
+            - factor_with_regime()의 아웃풋 데이터프레임
+            
+    Returns:
+        pd.DataFrame: 
+    """
+    
+    start_date = factor_with_regime_df.iloc[0].name - DateOffset(months = 2)
+    asset_df = asset_df.loc[start_date:,:].dropna().resample('M').last()
+
+    multi_asset_df = pd.merge(asset_df.pct_change(), factor_with_regime_df, left_index=True, right_index=True, how='left').dropna()
+    
+    return multi_asset_df
+
+def check_best_regime(multi_asset_df, freq: str, _plot: bool=False):
+    each_regime = multi_asset_df.columns[-4:]
+    tickers = multi_asset_df.columns[:-4]
+    
+    for regime in each_regime:
+        if _plot:
+            print((1+multi_asset_df[tickers].mul(multi_asset_df[regime], axis=0)).cumprod().plot(lw=1))
+
+        else:
+            for ticker in tickers:
+                print(f'{ticker} with {regime}')
+                Metric(portfolio=(1 + multi_asset_df[ticker] * multi_asset_df[regime]).cumprod(), freq=freq).print_report()
+                print()
+                
+def invest_asset_df(asset_df: pd.DataFrame, factor_cum_ret: pd.Series, alternate_asset_list: list) -> pd.DataFrame:
+    """_summary_
+    
+    Args:
+        asset_df (pd.DataFrame): 
+            - 벤치마크와 대체자산을 포함한 데이터프레임
+        factor_cum_ret (pd.Series): 
+            - '누적수익률.pct_change = 일별 수익률'이기 때문에 누적수익률을 사용
+        alternate_asset_list (list):
+            - 대체자산 리스트
+            
+    Returns:
+        pd.DataFrame: 팩터와 현금을 포함한 투자자산 데이터프레임
+    """
+    start_date = factor_cum_ret.index[0]
+    end_date = factor_cum_ret.index[-1]
+    
+    indexes_price = asset_df[alternate_asset_list].loc[start_date:end_date,]
+    indexes_price.index = pd.to_datetime(indexes_price.index)
+    indexes_price.index.name = 'date_time'
+    indexes_price['factor_rets'] = factor_cum_ret
+    invest_price = add_cash(indexes_price, 252, 0.04)
+    
+    return invest_price
+
+def regime_signal(ma_regime_df: pd.DataFrame, regime_asset_dict: dict) -> pd.DataFrame:
+    """_summary_
+    ma_regime_df (pd.DataFrame): 
+        - invest_asset_df()의 아웃풋 데이터프레임과 시황을 결합한 데이터프레임
+    regime_asset_dict (dict):
+        - 각 시황을 key, 투자할 자산을 value로 하는 딕셔너리
+        
+    Returns:
+        pd.DataFrame: 시황을 반영해 각 월에 어떤 자산에 투자할지 결정한 시그널 데이터프레임
+    """
+    
+    for key, value in regime_asset_dict.items():
+        ma_regime_df.loc[ma_regime_df[key] == 1, value] =1
+        
+    regime_signal = (ma_regime_df == 1) * 1 
+    regime_signal.drop(regime_asset_dict.keys(), axis=1, inplace=True)
+    regime_signal['CASH'] = (regime_signal.sum(axis=1) == 0).astype(int)
+    
+    return regime_signal

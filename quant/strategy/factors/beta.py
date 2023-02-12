@@ -8,7 +8,7 @@ class Beta:
     각 자산군의 벤치마크를 설정하고, 해당 벤치마크에 포함된 종목들의 가격 데이터프레임을 입력하면 베타값을 계산한다.
     """
     
-    def __init__(self, equity_universe: pd.DataFrame, 
+    def __init__(self, equity_with_benchmark: pd.DataFrame, 
                 benchmark_ticker: str, 
                 intercept: int=1, 
                 n_sel: int=20,
@@ -16,16 +16,22 @@ class Beta:
         """_summary_
 
         Args:
-            equity_universe (pd.DataFrame): 벤치마크와 벤치마크에 포한된 종목들의 가격 데이터프레임
-            benchmark_ticker (str): 벤치마크의 티커
-            intercept (int, optional): 선형회귀의 y절편 값. Defaults to 1.
-
+            equity_with_benchmark (pd.DataFrame): 
+                - 벤치마크와 벤치마크에 포한된 종목들의 가격 데이터프레임
+            benchmark_ticker (str): 
+                - 벤치마크의 티커
+            intercept (int, optional): 
+                - 선형회귀의 y절편 값. Defaults to 1.
+            n_sel (int, optional):
+                - 베타 상위 n개 종목에 투자. Defaults to 20.
+            lookback_window (int, optional): 
+                - lookback window. Defaults to 12.
         Returns:
             pd.DataFrame: 종목별 베타값
         """
         
         # 벤치마크와 벤치마크에 포함된 종목들의 가격 데이터프레임
-        self.price_df = equity_universe
+        self.price_df = equity_with_benchmark
         self.first_date = self.price_df.iloc[0].name
         self.last_date = self.price_df.iloc[-1].name
         
@@ -93,11 +99,14 @@ class Beta:
             df = self.price_df.loc[:index, :]
             df = df.iloc[-252:, :] if len(df) >= 252 else df
             
-            beta_index = Beta(equity_universe=df, benchmark_ticker=self.benchmart_ticker).cal_beta().sort_values(by='beta', ascending=False).head(self.n_sel).index
+            beta_index = Beta(equity_with_benchmark=df, benchmark_ticker=self.benchmart_ticker).cal_beta().sort_values(by='beta', ascending=False).head(self.n_sel).index
 
             signal_list.append(df.resample('M').last().apply(assign_value, axis=1).iloc[-1])
 
-        signal_df = pd.concat(signal_list, axis=1).T 
+        try: 
+            signal_df = pd.concat(signal_list, axis=1).T 
+            return pd.concat(signal_df, axis=1).T
         
-        return pd.concat(signal_df, axis=1).T
+        except TypeError:
+            return pd.concat(signal_list, axis=1).T
     
