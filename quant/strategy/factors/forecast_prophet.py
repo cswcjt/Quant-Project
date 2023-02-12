@@ -81,7 +81,7 @@ class ProphetFactor:
         
         lookback = 365 * self.lookback
         if (lookback > 0) and (len(df) >= lookback):
-            df = df.iloc[-lookback:, :]
+            df = df.iloc[-lookback:]
         
         df = df.reset_index(drop=False)
         df.columns = ['ds', 'y']
