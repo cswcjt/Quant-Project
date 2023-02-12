@@ -50,9 +50,8 @@ class ProphetFactor:
         self.price = price
         if not isinstance(self.price.index[0], pd.Timestamp):
             self.price.index = pd.to_datetime(self.price.index)
-        print(self.price.index)
+        
         self.rebal_dates = rebal_dates(self.price, self.freq)
-        print(self.rebal_dates)
         self.rebal_price = self.price.loc[self.rebal_dates, :]
         
         self.lookback = lookback
@@ -80,7 +79,7 @@ class ProphetFactor:
             df.index = pd.to_datetime(df.index)
            
         df = df.asfreq('D').interpolate(method='linear')
-        df = df.loc[:date, :]
+        df = df.loc[:date]
         
         lookback = 365 * self.lookback
         if (lookback > 0) and (len(df) >= lookback):
@@ -90,7 +89,16 @@ class ProphetFactor:
         df.columns = ['ds', 'y']
         return df
     
-    def find_best_param(self, df: pd.DataFrame, metric: str) -> dict:
+    def find_best_params(self, df: pd.DataFrame, metric: str) -> dict:
+        if len(df) < 180:
+            return {'changepoint_prior_scale': 0.05,
+                    'seasonality_prior_scale': 10,
+                    'seasonality_mode': 'additive'}
+        elif len(df) < 365:
+            intial_days = '90 days'
+        else:
+            intial_days = '180 days'
+        
         param_grid = {
             'changepoint_prior_scale': [0.001, 0.01, 0.1, 0.5],
             'seasonality_prior_scale': [0.01, 0.1, 1.0, 10.0],
@@ -106,7 +114,7 @@ class ProphetFactor:
         for params in all_params:
             model = Prophet(**params).fit(df)
             df_cv = cross_validation(model, 
-                                     initial='180 days',
+                                     initial=intial_days,
                                      period='30 days',
                                      horizon='30 days',
                                      parallel="dask",
@@ -128,11 +136,10 @@ class ProphetFactor:
         best_params = {}
         for date in self.rebal_dates:
             best_params[date] = {}
-            
             for asset in self.price.columns:
-                df = self.preprocessing(self.price[asset], date)
-                param = self.find_best_param(df, metric)
-                best_params[date][asset] = param
+                df = self.preprocessing(self.price.loc[:, asset], date)
+                params = self.find_best_params(df, metric)
+                best_params[date][asset] = params
                 
         return best_params
     
@@ -226,7 +233,8 @@ import yfinance as yf
 
 if __name__ == '__main__':
     df = pd.read_csv(PJT_PATH / 'asset_universe.csv', index_col=0)
-    prophet1 = ProphetFactor(df, freq='month', n_sel=20, long_only=True)
+    prophet1 = ProphetFactor(df, freq='month', n_sel=20,
+                             lookback=1, long_only=True)
     prophet1.save_params(metric='mae')
     params = prophet1.load_params()
     print(params)
