@@ -1,8 +1,9 @@
-import holidays
 import itertools
 import json
-import numpy as np
 import os
+import time
+
+import numpy as np
 import pandas as pd
 
 from dask.distributed import Client
@@ -10,7 +11,6 @@ from numba import njit, vectorize
 from prophet import Prophet
 from prophet.diagnostics import cross_validation
 from prophet.diagnostics import performance_metrics
-from prophet.plot import plot_cross_validation_metric
 
 import warnings
 warnings.filterwarnings('ignore')
@@ -27,8 +27,7 @@ from quant.price.price_processing import rebal_dates, get_price
 
 class ProphetFactor:
     def __init__(self, price: pd.DataFrame,
-                 freq: str, n_sel: int,
-                 lookback: int=1,
+                 freq: str, lookback: int=1,
                  long_only: bool=True):
         """초기화 함수
 
@@ -55,7 +54,6 @@ class ProphetFactor:
         self.rebal_price = self.price.loc[self.rebal_dates, :]
         
         self.lookback = lookback
-        self.n_sel = n_sel
         self.long_only = long_only
         self.model = None
     
@@ -110,14 +108,22 @@ class ProphetFactor:
             for v in itertools.product(*param_grid.values())]
         scores = []  # Store the MAEs(or other metric) for each params here
 
-        client = Client()
+        # client = Client()
         for params in all_params:
             model = Prophet(**params).fit(df)
+            
+            # df_cv = cross_validation(model, 
+            #                          initial=intial_days,
+            #                          period='30 days',
+            #                          horizon='30 days',
+            #                          parallel="dask",
+            #                          disable_tqdm=True)
+            
             df_cv = cross_validation(model, 
                                      initial=intial_days,
                                      period='30 days',
                                      horizon='30 days',
-                                     parallel="dask",
+                                     parallel=None,
                                      disable_tqdm=True)
             
             df_p = performance_metrics(df_cv)
@@ -135,11 +141,13 @@ class ProphetFactor:
     def make_full_params(self, metric: str) -> None:
         best_params = {}
         for date in self.rebal_dates:
-            best_params[date] = {}
+            strdate = date.strftime('%Y-%m-%d')
+            best_params.update({strdate: {}})
+            
             for asset in self.price.columns:
                 df = self.preprocessing(self.price.loc[:, asset], date)
                 params = self.find_best_params(df, metric)
-                best_params[date][asset] = params
+                best_params[strdate].update({asset: params})
                 
         return best_params
     
@@ -150,7 +158,7 @@ class ProphetFactor:
         end = self.rebal_dates[-1].strftime('%Y%m')
         
         fname = f'prophet_params_{metric}_{start}_{end}.json'
-        with open(self.save_path / 'prophet_params.json', 'w') as f:
+        with open(self.save_path / fname, 'w') as f:
             json.dump(best_params, f)
     
     def load_params(self) -> dict:
@@ -166,7 +174,7 @@ class ProphetFactor:
                 break
         
         if load_file == '':
-            raise FileNotFoundError('There is no parameter file')
+            raise FileNotFoundError('There is no saved file.')
         else:
             with open(self.save_path / load_file, 'r') as f:
                 params = json.load(f)
@@ -176,38 +184,62 @@ class ProphetFactor:
     def calc_returns(self) -> pd.DataFrame:
         # Prophet 모델을 통해 예측한 파라미터를 불러옴
         try:
+            params_exist = True
             best_params = self.load_params()
         except FileNotFoundError:
-            best_params = self.make_full_params(metric='mae')
+            params_exist = False
+            param = {
+                'changepoint_prior_scale': 0.05,
+                'seasonality_prior_scale': 10,
+                'seasonality_mode': 'additive',
+            }
             
-        returns = {}
-        
+        returns = {}        
         # 각 날짜별, 자산별로 예측 수익률 계산
         for date in self.rebal_dates:
-            returns[date] = 0
-            
+            strdate = date.strftime('%Y-%m-%d')
+            returns.update({strdate: {}})
             for asset in self.price.columns:
                 df = self.preprocessing(self.price[asset], date)
-                param = self.load_params()[date][asset]
+                if params_exist:
+                    param = best_params[strdate][asset]
                 
                 model = Prophet(**param).fit(df)
                 future = model.make_future_dataframe(periods=30, freq='D')
                 forecast = model.predict(future)
                 
-                returns[date][asset] = (forecast['yhat'].iloc[-1] - df.loc[-1,asset]) \
-                                        / df.iloc[-1, asset]
+                ret = (forecast['yhat'].iloc[-1] - df.iloc[-1,1]) / df.iloc[-1,1]
+                returns[strdate].update({
+                    asset: ret
+                })
 
         return pd.DataFrame(returns)
     
-    def calc_signal(self):
+    def save_returns(self):
+        """ 시계열 예측팩터 수익률 테이블 저장 함수 """
+        retruns = self.calc_returns()
+        
+        save_path = PJT_PATH / 'quant' / 'strategy' / 'factors' / 'returns'
+        fname = 'prophet_returns.json'
+        
+        retruns.to_json(save_path / 'prophet_returns.json')
+        
+    def load_returns(self):
+        """ 시계열 예측팩터 수익률 테이블 불러오기 함수 """
+        load_path = PJT_PATH / 'quant' / 'strategy' / 'factors' / 'returns'
+        fname = 'prophet_returns.json'
+        
+        return pd.read_json(load_path / fname)
+    
+    def calc_signal(self, returns: pd.DataFrame, n_sel: int):
         """ 시그널 계산 함수 """
-        rets = self.calc_returns()
+        rets = returns
         
         if self.long_only:
             # 수익률 순위화
             rank = rets.rank(axis=1, ascending=False)
             # 롱 시그널
-            long_signal = (rank <= self.n_sel) * 1
+            long_signal = (rank <= n_sel) * 1
             signal = long_signal
         
         else:
@@ -215,7 +247,7 @@ class ProphetFactor:
             abs_rank = rets.applymap(abs).rank(axis=1, ascending=False)
             
             # 시그널
-            abs_signal = (abs_rank <= self.n_sel) * 1
+            abs_signal = (abs_rank <= n_sel) * 1
             
             # 롱 시그널
             long_signal = (rets > 0) * 1
@@ -228,13 +260,11 @@ class ProphetFactor:
                 + (abs_signal * short_signal.values)
             
         return signal
-    
+
 import yfinance as yf
 
 if __name__ == '__main__':
     df = pd.read_csv(PJT_PATH / 'asset_universe.csv', index_col=0)
-    prophet1 = ProphetFactor(df, freq='month', n_sel=20,
-                             lookback=1, long_only=True)
-    prophet1.save_params(metric='mae')
-    params = prophet1.load_params()
-    print(params)
+    prophet = ProphetFactor(df, freq='month',
+                            lookback=1, long_only=True)
+    prophet.save_returns()
