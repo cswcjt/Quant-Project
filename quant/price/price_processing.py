@@ -5,6 +5,15 @@ import pandas as pd
 import numpy as np
 from functools import reduce
 
+## Project Path 추가
+import sys
+from pathlib import Path
+
+PJT_PATH = Path(__file__).parents[3]
+sys.path.append(str(PJT_PATH))
+
+from scaling import convert_freq, annualize_scaler
+
 def get_price(tickers: list, period: str, interval: str, start_date: str=None) -> pd.DataFrame:
     """Download Price Data
 
@@ -87,24 +96,30 @@ def rebal_dates(price: pd.DataFrame, period: str) -> list:
     Returns:
         list -> 리밸날짜를 담은 datetimeindex 
     """
-    
+    period = convert_freq(period)
+    last_date = price.index[-1]
+        
     _price = price.reset_index()
+    colname = _price.columns[0]
     
     if period == "month":
-        groupby = [_price['date_time'].dt.year, _price['date_time'].dt.month]
+        groupby = [_price[colname].dt.year, _price[colname].dt.month]
         
     elif period == "quarter":
-        groupby = [_price['date_time'].dt.year, _price['date_time'].dt.quarter]
+        groupby = [_price[colname].dt.year, _price[colname].dt.quarter]
         
     elif period == "halfyear":
-        groupby = [_price['date_time'].dt.year, _price['date_time'].dt.month // 7]
+        groupby = [_price[colname].dt.year, _price[colname].dt.month // 7]
         
     elif period == "year":
-        groupby = [_price['date_time'].dt.year, _price['date_time'].dt.year]
-        
-    rebal_dates = pd.to_datetime(_price.groupby(groupby)['date_time'].last().values)
+        groupby = [_price[colname].dt.year, _price[colname].dt.year]
     
-    return rebal_dates
+    rebal_dates = pd.to_datetime(_price.groupby(groupby)[colname].last().values)
+    
+    if rebal_dates[-1] > last_date:
+        return rebal_dates[:-1]
+    else:
+        return rebal_dates
 
 def price_on_rebal(price: pd.DataFrame, rebal_dates: list) -> pd.DataFrame:
     """Prince Info on Rebalancing Date
