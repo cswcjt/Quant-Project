@@ -22,7 +22,7 @@ from plotnine import *
 
 class Prophet_model:
 
-    def __init__(self, df: pd.DataFrame, param_grid: dict, matrics: str, periods=30, horizon='30 days'): 
+    def __init__(self, df: pd.DataFrame, param_grid: dict, matrics: str, periods=30, horizon='264 days'): 
         self.df = df
         self.df['y'] = df['y']
         self.df['ds'] = df['ds']
