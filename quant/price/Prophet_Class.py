@@ -38,7 +38,7 @@ class Prophet_model:
         holiday = pd.DataFrame([])
         for date, name in sorted(holidays.KR(years=[2018,2019,2020,2021]).items()):
             # years만 조정
-            holiday = holiday.append(pd.DataFrame({'ds': date, 'holiday' : "KR-Holidays"}, index=[0]), ignore_index=True)
+            holiday = holiday.append(pd.DataFrame({'ds': date, 'holiday' : "US-Holidays"}, index=[0]), ignore_index=True)
         holiday['ds'] = pd.to_datetime(holiday['ds'], format='%Y-%m-%d', errors='ignore')
         
 
@@ -64,7 +64,7 @@ class Prophet_model:
         self.forecast = self.m.predict(future)
 
     def get_results(self):
-        return self.final_params, self.forecast.loc[self.df.shape[0]:, 'yhat'].values
+        return self.m, self.final_params, self.forecast.loc[self.df.shape[0]:, 'yhat'].values
         # 마지막 리턴값만 조정
 
         
