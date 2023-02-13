@@ -1,7 +1,7 @@
 import pandas as pd
 import statsmodels.api as sm
 
-class Beta:
+class BetaFactor:
     """_summary_
 
     자산의 베타값을 계산하는 클래스
@@ -9,7 +9,7 @@ class Beta:
     """
     
     def __init__(self, equity_with_benchmark: pd.DataFrame, 
-                benchmark_ticker: str, 
+                benchmark_ticker: str='SPY', 
                 intercept: int=1, 
                 n_sel: int=20,
                 lookback_window: int=12) -> pd.DataFrame:
@@ -17,7 +17,7 @@ class Beta:
 
         Args:
             equity_with_benchmark (pd.DataFrame): 
-                - 벤치마크와 벤치마크에 포한된 종목들의 가격 데이터프레임
+                - 벤치마크와 벤치마크에 포한된 종목들의 일별 가격 데이터프레임
             benchmark_ticker (str): 
                 - 벤치마크의 티커
             intercept (int, optional): 
@@ -99,7 +99,7 @@ class Beta:
             df = self.price_df.loc[:index, :]
             df = df.iloc[-252:, :] if len(df) >= 252 else df
             
-            beta_index = Beta(equity_with_benchmark=df, benchmark_ticker=self.benchmart_ticker).cal_beta().sort_values(by='beta', ascending=False).head(self.n_sel).index
+            beta_index = BetaFactor(equity_with_benchmark=df, benchmark_ticker=self.benchmart_ticker).cal_beta().sort_values(by='beta', ascending=False).head(self.n_sel).index
 
             signal_list.append(df.resample('M').last().apply(assign_value, axis=1).iloc[-1])
 
@@ -110,3 +110,5 @@ class Beta:
         except TypeError:
             return pd.concat(signal_list, axis=1).T
     
+    def signal(self):
+        return self.beta()

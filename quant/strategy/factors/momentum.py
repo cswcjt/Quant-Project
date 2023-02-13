@@ -9,14 +9,14 @@ class MomentumFactor:
         pd.DataFrame -> 거래 시그널을 알려주는 df
     """
     
-    def __init__(self, rebal_price: pd.DataFrame, 
-                lookback_window: int, n_sel: int, 
+    def __init__(self, price_df: pd.DataFrame, 
+                lookback_window: int=12, n_sel: int=20, 
                 long_only: bool=True):
         """초기화 함수
 
         Args:
             rebal_price (pd.DataFrame): 
-                - DataFrame -> price_on_rebal()의 리턴 값. 리밸런싱 날짜의 타켓 상품들 종가 df
+                - DataFrame -> 일별 종가 데이터프레임
             lookback_window (int):
                 - int -> 모멘텀(추세)를 확인할 기간 설정
             n_sel (int):
@@ -24,10 +24,9 @@ class MomentumFactor:
             long_only (bool, optional): 
                 - bool -> 매수만 가능한지 아님 공매도까지 가능한지 결정. Defaults to True.
         """
-
-        self.price = rebal_price
+        
         self.lookback_window = lookback_window
-        self.rets = rebal_price.pct_change(self.lookback_window).fillna(0)
+        self.rets = price_df.resample('M').last().pct_change(self.lookback_window).fillna(0)
         self.n_sel = n_sel
         self.long_only = long_only
 
@@ -120,3 +119,5 @@ class MomentumFactor:
         # 절대 모멘텀과 상대 모멘텀의 시그널을 받을 때 이미 signal.iloc[self.lookback_window:,] 반영되어 있음
         return signal
 
+    def signal(self):
+        return self.dual_momentum()
