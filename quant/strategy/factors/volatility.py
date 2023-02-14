@@ -38,7 +38,7 @@ class VolatilityFactor:
         
         # 한달마다의 마지막 날짜 & lookback window = 1년
         self.lookback_window = lookback_window * annualize_scaler(freq)
-        monthly_index = rebal_dates(self.price_df, freq=freq)
+        monthly_index = rebal_dates(self.price_df, period=freq)
         self.monthly_index = monthly_index[(self.lookback_window - 1):]
         
         # 수익률 데이터프레임   
@@ -49,7 +49,6 @@ class VolatilityFactor:
         
     def volatility(self) -> pd.DataFrame:
         """_summary_
-
         Returns:
             pd.DataFrame: 변동성 시그널 df
         """

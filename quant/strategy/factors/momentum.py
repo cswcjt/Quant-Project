@@ -33,7 +33,7 @@ class MomentumFactor:
         """
         
         self.lookback_window = lookback_window * annualize_scaler(freq)
-        self.rebal_dates = rebal_dates(price_df, freq=freq, include_first_date=True)
+        self.rebal_dates = rebal_dates(price_df, period=freq, include_first_date=True)
         self.rets = price_df.loc[self.rebal_dates, :].pct_change(self.lookback_window).dropna(0)
         self.n_sel = n_sel
         self.long_only = long_only
