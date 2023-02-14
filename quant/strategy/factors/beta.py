@@ -47,7 +47,7 @@ class BetaFactor:
         self.benchmark_df = pd.DataFrame({f'{self.benchmart_ticker}': self.price_df[self.benchmart_ticker]})
         
         # 한달마다의 마지막 날짜 & lookback window = 1년
-        monthly_index = rebal_dates(self.price_df, freq=freq)
+        monthly_index = rebal_dates(self.price_df, period=freq)
         self.lookback_window = lookback_window * annualize_scaler(freq)
         self.monthly_index = monthly_index[(self.lookback_window - 1):]
         
