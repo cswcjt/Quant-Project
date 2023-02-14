@@ -14,14 +14,52 @@ from strategy.optimize.time_series import TimeSeries
 
 class BackTest:
     # 초기화 함수
-    def __init__(self, start_date: str, 
-                end_date: str, rebal_freq: str,
-                all_assets: pd.DataFrame, alter_asset_list: list,
-                benchmark_name: str, business_cycle: pd.DataFrame,
-                factor: str, cs_model: str,
-                ts_model: str, risk_tolerance: str
+    def __init__(self, 
+                start_date: str, 
+                end_date: str, 
+                rebal_freq: str,
+                factor: str, 
+                cs_model: str,
+                risk_tolerance: str, 
+                all_assets: pd.DataFrame, 
+                business_cycle: pd.DataFrame,
+                alter_asset_list: list=['TLT', 'GSG', 'VNQ', 'UUP'], 
+                benchmark_name: str='SPY', 
+                ts_model: str='ew'
                 ): 
+        """팩터의 성과를 분석하는 파트_
+            - 대시보드에 표시될 데이터를 생성하는 파트
+            - 대시보드에 필요한 변수들:
+                - Time Range: start_date, end_date
+                - Rebalancing Period: rebal_freq
+                - Factor: factor
+                - Weight: cs_model
+                - Risk Tolerance: ts_model, risk_tolerance
         
+            - 대시보드와 상관없는 변수들: 
+                - 참고: 데이터정보와 관련된 변수명을 제외하면 모두 대시보드에 필요한 변수들
+                - all_assets(자산+대체자산 데이터프레임), business_cycle(시황 데잌터프레임)
+                - alter_asset_list(대체자산 이름들), benchmark_name(벤치마크 이름)
+        
+        Args:
+            start_date (str): 투자 시작날
+            end_date (str): 투자 종료날
+            rebal_freq (str): 리밸런싱 주기
+                - 'month', 'quarter', 'halfyear', 'year'
+            all_assets (pd.DataFrame): 전체자산 데이터프레임
+            alter_asset_list (list): 대체자산 이름들
+            benchmark_name (str): 벤치마크 이름
+            business_cycle (pd.DataFrame): 시황 데이터프레임å
+            factor (str): 사용할 팩터 이름
+                - 'beta', 'mom', 'prophet', 'vol' 
+                - prophet은 사용법 몰라서 생략해 놓음
+            cs_model (str): 자산간 투자 비중을 결정하는 모델
+                - 'ew', 'emv', 'msr', 'gmv', 'mdp', 'rp' 
+            ts_model (str): 현금보유비율 설정
+                - 'ew' 
+            risk_tolerance (str): 위험선호도
+                - 'aggressive': 30, 'moderate': 50, 'conservative': 70
+        """
         # 가격데이터 날짜, 리밸 설정
         self.start_date = start_date
         self.end_date = end_date
@@ -32,7 +70,7 @@ class BackTest:
         self.rebal_dates_list = rebal_dates(self.all_assets_df, self.rebal_freq)
         
         # 리밸런싱 날의 가격 정보
-        self.price_on_rebal_df = price_on_rebal(self.all_assets_df, self.rebal_dates_list)
+        self.price_on_rebal_df = price_on_rebal(self.all_assets_df, self.rebal_dates_list)  
         
         # all_assets_df를 컬럼으로 슬라이싱하기 위한 파트 
         self.benchmark_name = benchmark_name 
@@ -185,6 +223,33 @@ class BackTest:
         port_returns = port_rets(port_value, cumulative)
         
         return port_returns
+    
+if __name__ == '__main__':
+    path = '/Users/jtchoi/Library/CloudStorage/GoogleDrive-jungtaek0227@gmail.com/My Drive/quant/Quant-Project/quant'
+    all_assets_df = pd.read_csv(path + '/alter_with_equity.csv', index_col=0)
+    all_assets_df.index = pd.to_datetime(all_assets_df.index)
+    all_assets_df = all_assets_df.loc['2011':,].dropna(axis=1)
+    alter_asset_list=['TLT', 'GSG', 'VNQ', 'UUP']
+    bs_df = pd.read_csv(path + '/business_cycle.csv', index_col=0)
+    bs_df.index = pd.to_datetime(bs_df.index)
+
+    #print(all_assets_df.drop(columns=alter_asset_list))
+    
+    test = BackTest(start_date='2011-01-01', 
+                    end_date='2022-12-31', 
+                    rebal_freq='quarter', 
+                    factor='mom', 
+                    cs_model='emv', 
+                    risk_tolerance='aggressive',
+                    all_assets=all_assets_df, 
+                    business_cycle=bs_df
+                    )
+    
+    #print(test.factor_signal())
+    #print(test.cross_weight())
+    #print(test.port_return('cs_weight'))
+    #print(test.time_weight())
+    print(test.port_return('ts_weight'))
 
 class RegimeCheck(BackTest):
     def __init__(self, start_date: str, 
@@ -202,34 +267,52 @@ class RegimeCheck(BackTest):
                         risk_tolerance
                         )
     
+    def factor_with_regime(self):
+        pass
+    
+    def check_factor_with_regime(self):
+        pass
+    
+    def multi_asset_df(self):
+        pass
+    
+    def check_best_regime(self):
+        pass
+    
+    def invest_asset_df(self):
+        pass
+    
+    def regime_signal(self):
+        pass
+    
 
 
 
 
 
-if __name__ == '__main__':
-    path = '/Users/jtchoi/Library/CloudStorage/GoogleDrive-jungtaek0227@gmail.com/My Drive/quant/Quant-Project/quant'
-    all_assets_df = pd.read_csv(path + '/alter_with_equity.csv', index_col=0)
-    all_assets_df.index = pd.to_datetime(all_assets_df.index)
-    all_assets_df = all_assets_df.loc['2011':,].dropna(axis=1)
-    alter_asset_list=['TLT', 'GSG', 'VNQ', 'UUP']
-    bs_df = pd.read_csv(path + '/business_cycle.csv', index_col=0)
-    bs_df.index = pd.to_datetime(bs_df.index)
+# if __name__ == '__main__':
+#     path = '/Users/jtchoi/Library/CloudStorage/GoogleDrive-jungtaek0227@gmail.com/My Drive/quant/Quant-Project/quant'
+#     all_assets_df = pd.read_csv(path + '/alter_with_equity.csv', index_col=0)
+#     all_assets_df.index = pd.to_datetime(all_assets_df.index)
+#     all_assets_df = all_assets_df.loc['2011':,].dropna(axis=1)
+#     alter_asset_list=['TLT', 'GSG', 'VNQ', 'UUP']
+#     bs_df = pd.read_csv(path + '/business_cycle.csv', index_col=0)
+#     bs_df.index = pd.to_datetime(bs_df.index)
 
     #print(all_assets_df.drop(columns=alter_asset_list))
     
-    test = BackTest(start_date='2011-01-01', end_date='2022-12-31', 
-                    rebal_freq='quarter', all_assets=all_assets_df, 
-                    benchmark_name='SPY', alter_asset_list=['TLT', 'GSG', 'VNQ', 'UUP'],
-                    business_cycle=bs_df, factor='mom', 
-                    cs_model='emv', ts_model='ew', 
-                    risk_tolerance='aggressive')
+    # test = BackTest(start_date='2011-01-01', end_date='2022-12-31', 
+    #                 rebal_freq='quarter', all_assets=all_assets_df, 
+    #                 benchmark_name='SPY', alter_asset_list=['TLT', 'GSG', 'VNQ', 'UUP'],
+    #                 business_cycle=bs_df, factor='mom', 
+    #                 cs_model='emv', ts_model='ew', 
+    #                 risk_tolerance='aggressive')
     
     
     #print(test.factor_signal())
     #print(test.cs_weight())
     #print(test.port_return())
     #print(test.time_weight())
-    print(test.port_return('ts_weight'))
+    #print(test.port_return('ts_weight'))
 
 
