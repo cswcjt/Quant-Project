@@ -21,7 +21,39 @@ class BackTest:
                 factor: str, cs_model: str,
                 ts_model: str, risk_tolerance: str
                 ): 
+        """팩터의 성과를 분석하는 파트_
+            - 대시보드에 표시될 데이터를 생성하는 파트
+            - 대시보드에 필요한 변수들:
+                - Time Range: start_date, end_date
+                - Rebalancing Period: rebal_freq
+                - Factor: factor
+                - Weight: cs_model
+                - Risk Tolerance: ts_model, risk_tolerance
         
+            - 대시보드와 상관없는 변수들: 
+                - 참고: 데이터정보와 관련된 변수명을 제외하면 모두 대시보드에 필요한 변수들
+                - all_assets(자산+대체자산 데이터프레임), business_cycle(시황 데잌터프레임)
+                - alter_asset_list(대체자산 이름들), benchmark_name(벤치마크 이름)
+        
+        Args:
+            start_date (str): 투자 시작날
+            end_date (str): 투자 종료날
+            rebal_freq (str): 리밸런싱 주기
+                - 'month', 'quarter', 'halfyear', 'year'
+            all_assets (pd.DataFrame): 전체자산 데이터프레임
+            alter_asset_list (list): 대체자산 이름들
+            benchmark_name (str): 벤치마크 이름
+            business_cycle (pd.DataFrame): 시황 데이터프레임å
+            factor (str): 사용할 팩터 이름
+                - 'beta', 'mom', 'prophet', 'vol' 
+                - prophet은 사용법 몰라서 생략해 놓음
+            cs_model (str): 자산간 투자 비중을 결정하는 모델
+                - 'ew', 'emv', 'msr', 'gmv', 'mdp', 'rp' 
+            ts_model (str): 현금보유비율 설정
+                - 'ew' 
+            risk_tolerance (str): 위험선호도
+                - 'aggressive': 30, 'moderate': 50, 'conservative': 70
+        """
         # 가격데이터 날짜, 리밸 설정
         self.start_date = start_date
         self.end_date = end_date
@@ -201,6 +233,24 @@ class RegimeCheck(BackTest):
                         cs_model, ts_model, 
                         risk_tolerance
                         )
+    
+    def factor_with_regime(self):
+        pass
+    
+    def check_factor_with_regime(self):
+        pass
+    
+    def multi_asset_df(self):
+        pass
+    
+    def check_best_regime(self):
+        pass
+    
+    def invest_asset_df(self):
+        pass
+    
+    def regime_signal(self):
+        pass
     
 
 
