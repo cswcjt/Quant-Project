@@ -9,7 +9,7 @@ sys.path.append(str(PJT_PATH))
 import numpy as np
 import pandas as pd
 
-class Volatility:
+class VolatilityFactor:
 
     def __init__(self, price_df: pd.DataFrame, 
                 n_sel: int=20,
@@ -77,3 +77,6 @@ class Volatility:
         signal_df = pd.concat(signal_list, axis=1).T 
         
         return signal_df
+    
+    def signal(self):
+        return self.volatility()
