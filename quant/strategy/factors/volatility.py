@@ -14,7 +14,7 @@ import pandas as pd
 class VolatilityFactor:
 
     def __init__(self, price_df: pd.DataFrame,
-                 freq: str='M',
+                 freq: str='month',
                  n_sel: int=20,
                  lookback_window: int=1) -> pd.DataFrame:
         """_summary_
@@ -78,8 +78,20 @@ class VolatilityFactor:
             signal_list.append(df.resample('M').last().apply(assign_value, axis=1).iloc[-1])
             
         signal_df = pd.concat(signal_list, axis=1).T 
+        signal_df.index = self.monthly_index
         
         return signal_df
     
     def signal(self):
         return self.volatility()
+    
+    
+if __name__ == '__main__':
+    path = '/Users/jtchoi/Library/CloudStorage/GoogleDrive-jungtaek0227@gmail.com/My Drive/quant/Quant-Project/quant'
+    equity_df = pd.read_csv(path + '/alter_with_equity.csv', index_col=0)
+    print(equity_df.tail())
+    equity_df.index = pd.to_datetime(equity_df.index)
+    equity_universe = equity_df.loc['2011':,].dropna(axis=1)
+    
+    signal = VolatilityFactor(equity_universe, 'quarter').signal()
+    print(signal.sum(axis=1))

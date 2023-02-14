@@ -17,7 +17,7 @@ class BetaFactor:
     """
     
     def __init__(self, equity_with_benchmark: pd.DataFrame, 
-                 freq: str='M',
+                 freq: str='month',
                 benchmark_ticker: str='SPY', 
                 intercept: int=1, 
                 n_sel: int=20,
@@ -44,7 +44,8 @@ class BetaFactor:
         self.last_date = self.price_df.iloc[-1].name
         
         self.benchmart_ticker = benchmark_ticker
-        self.benchmark_df = pd.DataFrame({f'{self.benchmart_ticker}': self.price_df[self.benchmart_ticker]})
+        self.benchmark_df = pd.DataFrame({f'{self.benchmart_ticker}': 
+                                            self.price_df[self.benchmart_ticker]})
         
         # 한달마다의 마지막 날짜 & lookback window = 1년
         monthly_index = rebal_dates(self.price_df, period=freq)
@@ -106,16 +107,35 @@ class BetaFactor:
             df = self.price_df.loc[:index, :]
             df = df.iloc[-252:, :] if len(df) >= 252 else df
             
-            beta_index = BetaFactor(equity_with_benchmark=df, benchmark_ticker=self.benchmart_ticker).cal_beta().sort_values(by='beta', ascending=False).head(self.n_sel).index
+            beta_index = BetaFactor(equity_with_benchmark=df, 
+                                    benchmark_ticker=self.benchmart_ticker)\
+                                    .cal_beta()\
+                                    .sort_values(by='beta', ascending=False)\
+                                    .head(self.n_sel)\
+                                    .index
 
             signal_list.append(df.resample('M').last().apply(assign_value, axis=1).iloc[-1])
 
         try: 
             signal_df = pd.concat(signal_list, axis=1).T 
+            signal_df.index = self.monthly_index
             return pd.concat(signal_df, axis=1).T
         
         except TypeError:
-            return pd.concat(signal_list, axis=1).T
+                signal_df = pd.concat(signal_list, axis=1).T
+                signal_df.index = self.monthly_index
+                return signal_df
     
     def signal(self):
         return self.beta()
+    
+    
+if __name__ == '__main__':
+    path = '/Users/jtchoi/Library/CloudStorage/GoogleDrive-jungtaek0227@gmail.com/My Drive/quant/Quant-Project/quant'
+    equity_df = pd.read_csv(path + '/alter_with_equity.csv', index_col=0)
+    print(equity_df.tail())
+    equity_df.index = pd.to_datetime(equity_df.index)
+    equity_universe = equity_df.loc['2011':,].dropna(axis=1)
+    
+    signal = BetaFactor(equity_universe, 'quarter').signal()
+    print(signal.sum(axis=1))
