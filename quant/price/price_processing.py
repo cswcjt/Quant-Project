@@ -84,7 +84,8 @@ def add_cash(price: pd.DataFrame, num_day_in_year:int, yearly_rfr: int) -> pd.Da
 
     return temp_df
 
-def rebal_dates(price: pd.DataFrame, period: str) -> list:
+def rebal_dates(price: pd.DataFrame, period: str,
+                include_first_date: bool=False) -> list:
     """Select Rebalancing Period 
 
     Args:
@@ -98,9 +99,10 @@ def rebal_dates(price: pd.DataFrame, period: str) -> list:
     """
     period = convert_freq(period)
     price.index = pd.to_datetime(price.index)
-        
+    
+    first_date = price.index[0]
     last_date = price.index[-1]
-        
+    
     _price = price.reset_index()
     colname = _price.columns[0]
     
@@ -117,11 +119,15 @@ def rebal_dates(price: pd.DataFrame, period: str) -> list:
         groupby = [_price[colname].dt.year, _price[colname].dt.year]
     
     rebal_dates = pd.to_datetime(_price.groupby(groupby)[colname].last().values)
+    if include_first_date:
+        rebal_dates = rebal_dates.append(pd.to_datetime([first_date]))
+        rebal_dates = rebal_dates.sort_values()
     
     if rebal_dates[-1] > last_date:
         return rebal_dates[:-1]
     else:
         return rebal_dates
+    
 
 def price_on_rebal(price: pd.DataFrame, rebal_dates: list) -> pd.DataFrame:
     """Prince Info on Rebalancing Date
@@ -147,17 +153,17 @@ def calculate_portvals(price_df: pd.DataFrame, weight_df: pd.DataFrame, signal_d
     if long_only: 
         for end_day in weight_df.index[1:]:
             sub_price_df = price_df.loc[prev_end_day:end_day]
-            sub_asset_flow_df = sub_price_df/sub_price_df.iloc[0]
+            sub_asset_flow_df = sub_price_df / sub_price_df.iloc[0]
 
             weight_series = weight_df.loc[prev_end_day]
-            indi_port_cum_rtn_series = (sub_asset_flow_df*weight_series)*cum_rtn_up_until_now
+            indi_port_cum_rtn_series = (sub_asset_flow_df * weight_series) * cum_rtn_up_until_now
         
             individual_port_val_df_list.append(indi_port_cum_rtn_series)
 
             total_port_cum_rtn_series = indi_port_cum_rtn_series.sum(axis=1)
             cum_rtn_up_until_now = total_port_cum_rtn_series.iloc[-1]
 
-            prev_end_day = end_day 
+            prev_end_day = end_day
 
         individual_port_val_df = reduce(lambda x, y: pd.concat([x, y.iloc[1:]]), individual_port_val_df_list)
         return individual_port_val_df
