@@ -73,22 +73,7 @@
 {% block script %}
     {{ block.super }}
     <script>
-        axios.get('{{ api_url }}')
-            .then(function (response) {
-                const data = response.data;
-
-                Object.keys(data).forEach(key => {
-                    chart.draw(
-                        key, 
-                        data[key]['data'], 
-                        data[key]['type'],
-                        data[key]['colors'],
-                        data[key]['height']
-                    );
-                })
-                
-            }).catch(function (err) {
-                console.error(err);
-            })
+        chart.requestGet('{{ api_url }}');
+        chart.requestPost('{{ api_url }}');
     </script>
 {% endblock %}

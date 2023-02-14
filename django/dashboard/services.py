@@ -10,11 +10,11 @@ def set_checkboxs_info():
             'input_name': ['Equal Weights', 'Market Analysis', 'Return Inc', 'AI Market Forecasting'],
             'is_multiple_check': False,
         },
-        {
-            'group_name': 'Asset Type Priority', 
-            'input_name': ['Equal Weights', 'Cap Desc', 'Cap Asc', 'ROI Desc', 'OPM Desc'],
-            'is_multiple_check': False,
-        },
+        # {
+        #     'group_name': 'Asset Type Priority', 
+        #     'input_name': ['Equal Weights', 'Cap Desc', 'Cap Asc', 'ROI Desc', 'OPM Desc'],
+        #     'is_multiple_check': False,
+        # },
         {
             'group_name': 'Risk Tolerance', 
             'input_name': ['Stable', 'Moderate', 'Risky'],
