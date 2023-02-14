@@ -14,12 +14,18 @@ from strategy.optimize.time_series import TimeSeries
 
 class BackTest:
     # 초기화 함수
-    def __init__(self, start_date: str, 
-                end_date: str, rebal_freq: str,
-                all_assets: pd.DataFrame, alter_asset_list: list,
-                benchmark_name: str, business_cycle: pd.DataFrame,
-                factor: str, cs_model: str,
-                ts_model: str, risk_tolerance: str
+    def __init__(self, 
+                start_date: str, 
+                end_date: str, 
+                rebal_freq: str,
+                factor: str, 
+                cs_model: str,
+                risk_tolerance: str, 
+                all_assets: pd.DataFrame, 
+                business_cycle: pd.DataFrame,
+                alter_asset_list: list=['TLT', 'GSG', 'VNQ', 'UUP'], 
+                benchmark_name: str='SPY', 
+                ts_model: str='ew'
                 ): 
         """팩터의 성과를 분석하는 파트_
             - 대시보드에 표시될 데이터를 생성하는 파트
@@ -64,7 +70,7 @@ class BackTest:
         self.rebal_dates_list = rebal_dates(self.all_assets_df, self.rebal_freq)
         
         # 리밸런싱 날의 가격 정보
-        self.price_on_rebal_df = price_on_rebal(self.all_assets_df, self.rebal_dates_list)
+        self.price_on_rebal_df = price_on_rebal(self.all_assets_df, self.rebal_dates_list)  
         
         # all_assets_df를 컬럼으로 슬라이싱하기 위한 파트 
         self.benchmark_name = benchmark_name 
@@ -217,6 +223,33 @@ class BackTest:
         port_returns = port_rets(port_value, cumulative)
         
         return port_returns
+    
+if __name__ == '__main__':
+    path = '/Users/jtchoi/Library/CloudStorage/GoogleDrive-jungtaek0227@gmail.com/My Drive/quant/Quant-Project/quant'
+    all_assets_df = pd.read_csv(path + '/alter_with_equity.csv', index_col=0)
+    all_assets_df.index = pd.to_datetime(all_assets_df.index)
+    all_assets_df = all_assets_df.loc['2011':,].dropna(axis=1)
+    alter_asset_list=['TLT', 'GSG', 'VNQ', 'UUP']
+    bs_df = pd.read_csv(path + '/business_cycle.csv', index_col=0)
+    bs_df.index = pd.to_datetime(bs_df.index)
+
+    #print(all_assets_df.drop(columns=alter_asset_list))
+    
+    test = BackTest(start_date='2011-01-01', 
+                    end_date='2022-12-31', 
+                    rebal_freq='quarter', 
+                    factor='mom', 
+                    cs_model='emv', 
+                    risk_tolerance='aggressive',
+                    all_assets=all_assets_df, 
+                    business_cycle=bs_df
+                    )
+    
+    #print(test.factor_signal())
+    #print(test.cross_weight())
+    #print(test.port_return('cs_weight'))
+    #print(test.time_weight())
+    print(test.port_return('ts_weight'))
 
 class RegimeCheck(BackTest):
     def __init__(self, start_date: str, 
@@ -257,29 +290,29 @@ class RegimeCheck(BackTest):
 
 
 
-if __name__ == '__main__':
-    path = '/Users/jtchoi/Library/CloudStorage/GoogleDrive-jungtaek0227@gmail.com/My Drive/quant/Quant-Project/quant'
-    all_assets_df = pd.read_csv(path + '/alter_with_equity.csv', index_col=0)
-    all_assets_df.index = pd.to_datetime(all_assets_df.index)
-    all_assets_df = all_assets_df.loc['2011':,].dropna(axis=1)
-    alter_asset_list=['TLT', 'GSG', 'VNQ', 'UUP']
-    bs_df = pd.read_csv(path + '/business_cycle.csv', index_col=0)
-    bs_df.index = pd.to_datetime(bs_df.index)
+# if __name__ == '__main__':
+#     path = '/Users/jtchoi/Library/CloudStorage/GoogleDrive-jungtaek0227@gmail.com/My Drive/quant/Quant-Project/quant'
+#     all_assets_df = pd.read_csv(path + '/alter_with_equity.csv', index_col=0)
+#     all_assets_df.index = pd.to_datetime(all_assets_df.index)
+#     all_assets_df = all_assets_df.loc['2011':,].dropna(axis=1)
+#     alter_asset_list=['TLT', 'GSG', 'VNQ', 'UUP']
+#     bs_df = pd.read_csv(path + '/business_cycle.csv', index_col=0)
+#     bs_df.index = pd.to_datetime(bs_df.index)
 
     #print(all_assets_df.drop(columns=alter_asset_list))
     
-    test = BackTest(start_date='2011-01-01', end_date='2022-12-31', 
-                    rebal_freq='quarter', all_assets=all_assets_df, 
-                    benchmark_name='SPY', alter_asset_list=['TLT', 'GSG', 'VNQ', 'UUP'],
-                    business_cycle=bs_df, factor='mom', 
-                    cs_model='emv', ts_model='ew', 
-                    risk_tolerance='aggressive')
+    # test = BackTest(start_date='2011-01-01', end_date='2022-12-31', 
+    #                 rebal_freq='quarter', all_assets=all_assets_df, 
+    #                 benchmark_name='SPY', alter_asset_list=['TLT', 'GSG', 'VNQ', 'UUP'],
+    #                 business_cycle=bs_df, factor='mom', 
+    #                 cs_model='emv', ts_model='ew', 
+    #                 risk_tolerance='aggressive')
     
     
     #print(test.factor_signal())
     #print(test.cs_weight())
     #print(test.port_return())
     #print(test.time_weight())
-    print(test.port_return('ts_weight'))
+    #print(test.port_return('ts_weight'))
 
 
