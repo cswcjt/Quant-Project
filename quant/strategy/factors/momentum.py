@@ -7,7 +7,7 @@ from pathlib import Path
 
 PJT_PATH = Path(__file__).parents[3]
 sys.path.append(str(PJT_PATH))
-from quant.price.price_processing import rebal_dates
+from quant.price.price_processing import rebal_dates, price_on_rebal
 from scaling import annualize_scaler
 
 # 주식 모멘텀 클래스
@@ -32,9 +32,12 @@ class MomentumFactor:
                 - bool -> 매수만 가능한지 아님 공매도까지 가능한지 결정. Defaults to True.
         """
         
-        self.lookback_window = lookback_window * annualize_scaler(freq)
-        self.rebal_dates = rebal_dates(price_df, period=freq, include_first_date=True)
-        self.rets = price_df.loc[self.rebal_dates, :].pct_change(self.lookback_window).dropna(0)
+        self.lookback_window = lookback_window
+        self.rebal_dates_list = rebal_dates(price_df, 
+                                            period=freq, 
+                                            include_first_date=False)
+
+        self.rets = price_df.loc[self.rebal_dates_list, :].pct_change(self.lookback_window).dropna()
         self.n_sel = n_sel
         self.long_only = long_only
 
@@ -123,3 +126,13 @@ class MomentumFactor:
 
     def signal(self):
         return self.dual_momentum()
+    
+    
+if __name__ == '__main__':
+    path = '/Users/jtchoi/Library/CloudStorage/GoogleDrive-jungtaek0227@gmail.com/My Drive/quant/Quant-Project/quant'
+    equity_df = pd.read_csv(path + '/equity_universe.csv', index_col=0)
+    equity_df.index = pd.to_datetime(equity_df.index)
+    equity_universe = equity_df.loc['2011':,].dropna(axis=1)
+    
+    signal = MomentumFactor(equity_universe, 'quarter', 12).signal()
+    print(signal.sum(axis=1))
