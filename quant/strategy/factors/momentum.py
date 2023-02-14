@@ -1,6 +1,15 @@
 import pandas as pd
 import numpy as np
 
+## Project Path 추가
+import sys
+from pathlib import Path
+
+PJT_PATH = Path(__file__).parents[3]
+sys.path.append(str(PJT_PATH))
+from quant.price.price_processing import rebal_dates
+from scaling import annualize_scaler
+
 # 주식 모멘텀 클래스
 class MomentumFactor:
     """Momentum 전략을 관리할 클래스
@@ -9,9 +18,9 @@ class MomentumFactor:
         pd.DataFrame -> 거래 시그널을 알려주는 df
     """
     
-    def __init__(self, price_df: pd.DataFrame, 
-                lookback_window: int=12, n_sel: int=20, 
-                long_only: bool=True):
+    def __init__(self, price_df: pd.DataFrame,
+                 freq: str='M', lookback_window: int=12,
+                 n_sel: int=20, long_only: bool=True):
         """초기화 함수
 
         Args:
@@ -25,8 +34,9 @@ class MomentumFactor:
                 - bool -> 매수만 가능한지 아님 공매도까지 가능한지 결정. Defaults to True.
         """
         
-        self.lookback_window = lookback_window
-        self.rets = price_df.resample('M').last().pct_change(self.lookback_window).fillna(0)
+        self.lookback_window = lookback_window * annualize_scaler(freq)
+        self.rebal_dates = rebal_dates(price_df, freq=freq, include_first_date=True)
+        self.rets = price_df.loc[self.rebal_dates, :].pct_change(self.lookback_window).dropna(0)
         self.n_sel = n_sel
         self.long_only = long_only
 

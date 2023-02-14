@@ -2,8 +2,10 @@
 import sys
 from pathlib import Path
 
-PJT_PATH = Path(__file__).parents[2]
+PJT_PATH = Path(__file__).parents[3]
 sys.path.append(str(PJT_PATH))
+from quant.price.price_processing import rebal_dates
+from scaling import annualize_scaler
 
 #from quant.backtest.metric import Metric
 import numpy as np
@@ -11,9 +13,10 @@ import pandas as pd
 
 class VolatilityFactor:
 
-    def __init__(self, price_df: pd.DataFrame, 
-                n_sel: int=20,
-                lookback_window: int=12) -> pd.DataFrame:
+    def __init__(self, price_df: pd.DataFrame,
+                 freq: str='M',
+                 n_sel: int=20,
+                 lookback_window: int=1) -> pd.DataFrame:
         """_summary_
         
         Args:
@@ -34,8 +37,9 @@ class VolatilityFactor:
         self.last_date = self.price_df.iloc[-1].name
         
         # 한달마다의 마지막 날짜 & lookback window = 1년
-        monthly_index = self.price_df.resample('M').last().index
-        self.monthly_index = monthly_index[lookback_window:]
+        self.lookback_window = lookback_window * annualize_scaler(freq)
+        monthly_index = rebal_dates(self.price_df, freq=freq)
+        self.monthly_index = monthly_index[(self.lookback_window - 1):]
         
         # 수익률 데이터프레임   
         self.rets = self.price_df.pct_change().dropna()
