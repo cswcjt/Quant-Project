@@ -1,6 +1,15 @@
 import pandas as pd
 import numpy as np
 
+## Project Path 추가
+import sys
+from pathlib import Path
+
+PJT_PATH = Path(__file__).parents[2]
+sys.path.append(str(PJT_PATH))
+
+from price.price_processing import rebal_dates
+
 # 주식 모멘텀 클래스
 class MomentumFactor:
     """Momentum 전략을 관리할 클래스
@@ -26,7 +35,10 @@ class MomentumFactor:
         """
         
         self.lookback_window = lookback_window
-        self.rets = price_df.resample('M').last().pct_change(self.lookback_window).fillna(0)
+        rebal_list = rebal_dates(price_df, 'M')
+        price_df = price_df.loc[rebal_list, :]
+        #print(price_df)
+        self.rets = price_df.pct_change(self.lookback_window).fillna(0)
         self.n_sel = n_sel
         self.long_only = long_only
 
@@ -121,3 +133,13 @@ class MomentumFactor:
 
     def signal(self):
         return self.dual_momentum()
+    
+    
+if __name__ == '__main__':
+    path = '/Users/jtchoi/Library/CloudStorage/GoogleDrive-jungtaek0227@gmail.com/My Drive/quant/Quant-Project/quant'
+    equity_df = pd.read_csv(path + '/equity_universe.csv', index_col=0)
+    print(equity_df.tail())
+    equity_df.index = pd.to_datetime(equity_df.index)
+    equity_universe = equity_df.loc['2011':,].dropna(axis=1)
+    
+    print(MomentumFactor(equity_universe).signal())

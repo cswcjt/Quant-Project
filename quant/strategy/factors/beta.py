@@ -1,6 +1,14 @@
 import pandas as pd
 import statsmodels.api as sm
 
+## Project Path 추가
+import sys
+from pathlib import Path
+
+PJT_PATH = Path(__file__).parents[2]
+sys.path.append(str(PJT_PATH))
+
+from price.price_processing import rebal_dates
 class BetaFactor:
     """_summary_
 
@@ -39,11 +47,13 @@ class BetaFactor:
         self.benchmark_df = pd.DataFrame({f'{self.benchmart_ticker}': self.price_df[self.benchmart_ticker]})
         
         # 한달마다의 마지막 날짜 & lookback window = 1년
-        monthly_index = self.price_df.resample('M').last().index
+        rebal_list = rebal_dates(self.price_df, 'M')
+        month_price_df = self.price_df.loc[rebal_list, :]
+        monthly_index = month_price_df.index
         self.monthly_index = monthly_index[lookback_window:]
         
         # 수익률 데이터프레임   
-        self.rets = self.price_df.pct_change().dropna()
+        self.rets = self.price_df.pct_change().fillna(0)
         
         # 선형회귀의 y절편 값
         self.intercept = intercept
@@ -86,10 +96,12 @@ class BetaFactor:
         
         def assign_value(series):
             isin_series_index = series.loc[beta_index].index
-            series1 = pd.Series([1] * len(isin_series_index), index=isin_series_index.tolist())
+            series1 = pd.Series([1] * len(isin_series_index), 
+                                index=isin_series_index.tolist())
         
             not_isin_beta_index = series.index[~series.index.isin(beta_index)]
-            series2 = pd.Series([0] * len(not_isin_beta_index), index=not_isin_beta_index.tolist())
+            series2 = pd.Series([0] * len(not_isin_beta_index), 
+                                index=not_isin_beta_index.tolist())
         
             return pd.concat([series1, series2]).reindex(series.index).sort_index()
         
@@ -98,10 +110,16 @@ class BetaFactor:
         for index in self.monthly_index:
             df = self.price_df.loc[:index, :]
             df = df.iloc[-252:, :] if len(df) >= 252 else df
+            rebal_list = rebal_dates(df, 'M')
+            df = df.loc[rebal_list, :]  
             
-            beta_index = BetaFactor(equity_with_benchmark=df, benchmark_ticker=self.benchmart_ticker).cal_beta().sort_values(by='beta', ascending=False).head(self.n_sel).index
+            beta_index = BetaFactor(equity_with_benchmark=df, 
+                                    benchmark_ticker=self.benchmart_ticker)\
+                                    .cal_beta()\
+                                    .sort_values(by='beta', ascending=False)\
+                                    .head(self.n_sel).index
 
-            signal_list.append(df.resample('M').last().apply(assign_value, axis=1).iloc[-1])
+            signal_list.append(df.apply(assign_value, axis=1).iloc[-1])
 
         try: 
             signal_df = pd.concat(signal_list, axis=1).T 
@@ -112,3 +130,14 @@ class BetaFactor:
     
     def signal(self):
         return self.beta()
+    
+    
+if __name__ == '__main__':
+    path = '/Users/jtchoi/Library/CloudStorage/GoogleDrive-jungtaek0227@gmail.com/My Drive/quant/Quant-Project/quant'
+    all_assets_df = pd.read_csv(path + '/alter_with_equity.csv', index_col=0)
+    all_assets_df.index = pd.to_datetime(all_assets_df.index)
+    print(all_assets_df.tail())
+    all_assets_df.index = pd.to_datetime(all_assets_df.index)
+    equity_universe = all_assets_df.loc['2011':,].dropna(axis=1)
+    
+    print(BetaFactor(equity_universe).signal())
