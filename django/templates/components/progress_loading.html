@@ -1,0 +1,26 @@
+{% load static %}
+
+<style>
+    .progress-loading {
+			position: absolute;
+			top: 0;
+			left: 0;
+			height: 100%;
+			width: 100%;
+			background-color: #fff;
+			opacity: .8;
+            z-index: 100;
+		}
+		.progress-loading img {
+			margin: 0;
+			position: absolute;
+			top: 50%;
+			left: 50%;
+			transform: translate(-50%, -50%);
+            z-index: 100;
+		}
+</style>
+
+<div class="progress-loading text-center">
+	<img src="{% static 'img/progressbar.gif' %}" alt="progressbar">
+</div>
