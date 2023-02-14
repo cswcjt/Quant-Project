@@ -3,12 +3,16 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
-from scipy.stats import norm
+## Project Path 추가
 import sys
-sys.path.append('/Users/jtchoi/Library/CloudStorage/GoogleDrive-jungtaek0227@gmail.com/My Drive/quant/Quant-Project/quant')
+from pathlib import Path
 
-from price.price_processing import calculate_portvals, port_rets
-from strategy.optimize.cross_sectional import Equalizer
+PJT_PATH = Path(__file__).parents[3]
+sys.path.append(str(PJT_PATH))
+
+from quant.strategy.factors.momentum import MomentumFactor
+from quant.price.price_processing import calculate_portvals, port_rets
+from quant.strategy.optimize.cross_sectional import Equalizer
 
 
 class TimeSeries:
@@ -48,7 +52,8 @@ class TimeSeries:
         Returns:
             pd.DataFrame: 투자비중 df
         """
-        weights = pd.DataFrame({'PORTFOLIO': self.target_risk}, index=self.port_rets.index)
+        weights = pd.DataFrame({'PORTFOLIO': self.target_risk}, 
+                                index=self.port_rets.index)
         
         return weights
 
@@ -174,7 +179,7 @@ class TimeSeries:
         cs_ts_port_weight.dropna(inplace=True)
         #cs_ts_port_weight.fillna(0, inplace=True)
         
-        return ts_weight#, cs_ts_port_weight
+        return ts_weight, cs_ts_port_weight
     
     
 if __name__ == '__main__':
@@ -182,7 +187,7 @@ if __name__ == '__main__':
     equity_df = pd.read_csv(path + '/equity_universe.csv', index_col=0)
     equity_df.index = pd.to_datetime(equity_df.index)
     equity_universe = equity_df.loc['2011':,].dropna(axis=1)
-    signal = pd.read_csv(path + '/result/mom_signal.csv', index_col=0)
+    signal = MomentumFactor(equity_universe, 'quarter', 12).signal()
     
     ew_weight = Equalizer(signal, equity_universe, 'quarter', 'ew').weight()
     
