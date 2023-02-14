@@ -119,6 +119,7 @@ def rebal_dates(price: pd.DataFrame, period: str,
         groupby = [_price[colname].dt.year, _price[colname].dt.year]
     
     rebal_dates = pd.to_datetime(_price.groupby(groupby)[colname].last().values)
+    
     if include_first_date:
         rebal_dates = rebal_dates.append(pd.to_datetime([first_date]))
         rebal_dates = rebal_dates.sort_values()
@@ -198,7 +199,7 @@ def calculate_portvals(price_df: pd.DataFrame, weight_df: pd.DataFrame, signal_d
         individual_port_val_df = reduce(lambda x, y: pd.concat([x, y.iloc[1:]]), individual_port_val_df_list)
         return individual_port_val_df
 
-def port_cum_rets(portvals_df: pd.DataFrame, cumulative: bool=True) -> pd.Series:
+def port_rets(portvals_df: pd.DataFrame, cumulative: bool=True) -> pd.Series:
     """Calculate Cumulative Returns
     
     portvals_df (pd.DataFrame):
