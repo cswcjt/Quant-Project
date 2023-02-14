@@ -1,18 +1,22 @@
+import numpy as np
 import pandas as pd
 import yfinance as yf
-import sys
-sys.path.append('/Users/jtchoi/Library/CloudStorage/GoogleDrive-jungtaek0227@gmail.com/My Drive/quant/Quant-Project/quant')
 
+## Project Path 추가
+import sys
+from pathlib import Path
+
+PJT_PATH = Path(__file__).parents[2]
+sys.path.append(str(PJT_PATH))
 #from backtest.metric import Metric
 #from metric import Metric
-from econ_regime.econ_regime import business_cycle, asset_indicators
-from price.price_processing import convert_freq, get_price, add_cash, rebal_dates, price_on_rebal, calculate_portvals, port_rets
-from strategy.factors.beta import BetaFactor
-from strategy.factors.momentum import MomentumFactor
-#from strategy.factors.forecast_prophet import ProphetFactor
-from strategy.factors.volatility import VolatilityFactor
-from strategy.optimize.cross_sectional import Equalizer, Optimization
-from strategy.optimize.time_series import TimeSeries
+from quant.price.price_processing import convert_freq, add_cash, rebal_dates, price_on_rebal, calculate_portvals, port_rets
+from quant.strategy.factors.beta import BetaFactor
+from quant.strategy.factors.momentum import MomentumFactor
+#from quant.strategy.factors.forecast_prophet import ProphetFactor
+from quant.strategy.factors.volatility import VolatilityFactor
+from quant.strategy.optimize.cross_sectional import Equalizer, Optimization
+from quant.strategy.optimize.time_series import TimeSeries
 
 class FactorBacktest:
     # 초기화 함수
@@ -86,13 +90,14 @@ class FactorBacktest:
         self.factor = factor
         factor_dict = {'beta': BetaFactor,
                         'mom': MomentumFactor,
-                        # 'prophet': ProphetFactor(),
+                        'prophet': 'load_csv',
                         'vol': VolatilityFactor,
                         }
+        self.factor = factor
         self.factor_instance = factor_dict[self.factor]  
         self.daily_price_df = self.all_assets_df.drop(columns=self.alter_asset_list)
         self.signal = self.factor_signal()
-        
+            
         # 최적화(cs) 선택 및 횡적 비중 계산
         cs_dict = {'ew': Equalizer,
                     'emv': Equalizer,
@@ -124,7 +129,6 @@ class FactorBacktest:
 
     def factor_signal(self) -> pd.DataFrame:
         """월별 시그널 생성 함수
-        참고: 리밸런싱 날짜에만 생성하는게 아니다.
         
         Returns:
             pd.DataFrame: 월별 시그널 데이터프레임
@@ -143,14 +147,19 @@ class FactorBacktest:
             factor_signal = class_instance(price_df).signal()
             
             return factor_signal
-        
-        # elif class_instance == ProphetFactor:
-        #     pass
-        
+
         elif class_instance == VolatilityFactor:
             factor_signal = class_instance(price_df).signal()
             
             return factor_signal 
+        
+        elif class_instance == 'load_csv':
+            factor_signal = pd.read_csv(path + 
+                                    '/prophet_signal.csv', 
+                                    index_col=0, 
+                                    parse_dates=True)
+            
+            return factor_signal
         
     def cross_weight(self) -> pd.DataFrame:
         """월별 포트폴리오의 횡적 가중치 계산 함수
@@ -165,12 +174,20 @@ class FactorBacktest:
         cs_model = self.cs_model 
         
         if class_instance == Equalizer:
-            weight = class_instance(factor_signal, price_df, rebal_period, cs_model).weight()
+            weight = class_instance(factor_signal, 
+                                    price_df, 
+                                    rebal_period, 
+                                    cs_model)\
+                                    .weight()
             
             return weight
         
         elif class_instance == Optimization:
-            weight = class_instance(factor_signal, price_df, rebal_period, cs_model).weight()
+            weight = class_instance(factor_signal, 
+                                    price_df, 
+                                    rebal_period, 
+                                    cs_model)\
+                                    .weight()
             
             return weight
         
@@ -182,13 +199,17 @@ class FactorBacktest:
         call_method = self.ts_model
 
         if class_instance == TimeSeries:
-            ts_weight, ts_cs_weight = class_instance(cs_port_cum_rets, cs_weight, risk_tol, call_method).weight()
+            ts_weight, ts_cs_weight = class_instance(cs_port_cum_rets, 
+                                                    cs_weight, 
+                                                    risk_tol, 
+                                                    call_method)\
+                                                    .weight()
             
             return ts_weight, ts_cs_weight
 
     def port_return(self, weight_name: str, 
-                    cumulative: bool = True, 
-                    long_only: bool = True) -> pd.Series:
+                    cumulative: bool=True, 
+                    long_only: bool=True) -> pd.Series:
         """_summary_
 
         Args:
@@ -202,8 +223,12 @@ class FactorBacktest:
         """
         if weight_name == 'cs_weight':
             weight = self.cross_weight()
-            port_value = calculate_portvals(self.daily_price_df, weight, self.signal, long_only)
-            port_returns = port_rets(port_value, cumulative)
+            port_value = calculate_portvals(self.daily_price_df, 
+                                            weight, 
+                                            self.signal, 
+                                            long_only)
+            port_returns = port_rets(port_value, 
+                                    cumulative)
             
             return port_returns
         
@@ -215,18 +240,29 @@ class FactorBacktest:
             port_returns = port_rets(port_value, cumulative)
             
             return port_returns
-        
-        # elif weight_name == 'test_weight':
-        #     weight = self.cross_weight(self.signal, 
-        #                                 self.daily_price_df, 
-        #                                 self.rebal_freq, 
-        #                                 cs_model='beta').weight()
             
         port_value = calculate_portvals(self.daily_price_df, weight, self.signal, long_only)
         port_returns = port_rets(port_value, cumulative)
         
         return port_returns
         
+    def mutually_exclusive(self, factors: list) -> pd.DataFrame:
+        
+        port_rets_dict = {}
+        for factor in factors:
+            port_rets_dict[factor] = FactorBacktest(start_date='2011-01-01', 
+                                                    end_date='2022-12-31', 
+                                                    rebal_freq='month', 
+                                                    factor=factor, 
+                                                    cs_model='ew', 
+                                                    risk_tolerance='moderate',
+                                                    all_assets=all_assets_df, 
+                                                    business_cycle=bs_df
+                                                    ).port_return('cs_weight', cumulative=False)
+        df = pd.DataFrame(port_rets_dict)
+        
+        return df.corr(numeric_only=True)
+    
 if __name__ == '__main__':
     path = '/Users/jtchoi/Library/CloudStorage/GoogleDrive-jungtaek0227@gmail.com/My Drive/quant/Quant-Project/quant'
     all_assets_df = pd.read_csv(path + '/alter_with_equity.csv', index_col=0)
@@ -236,26 +272,28 @@ if __name__ == '__main__':
     bs_df = pd.read_csv(path + '/business_cycle.csv', index_col=0)
     bs_df.index = pd.to_datetime(bs_df.index)
 
+    #prophet_signal = pd.read_csv(path + '/prophet_signal.csv', index_col=0)
+    #print(prophet_signal)
     #print(all_assets_df.drop(columns=alter_asset_list))
     
     test = FactorBacktest(start_date='2011-01-01', 
                         end_date='2022-12-31', 
-                        rebal_freq='quarter', 
-                        factor='mom', 
+                        rebal_freq='month', 
+                        factor='prophet', 
                         cs_model='ew', 
-                        risk_tolerance='aggressive',
+                        risk_tolerance='moderate',
                         all_assets=all_assets_df, 
                         business_cycle=bs_df
                         )
     
-    # def mutuall_exclusive(self):
-    #     pass
     #print(test.factor_signal())
     #print(test.cross_weight())
     #print(test.port_return('cs_weight'))
-    #print(test.time_weight())
-    #print(test.cross_weight().index)
-    #print(type(test.time_weight()))
-    print(test.time_weight()[0].index)
-    #print(test.port_return('ts_weight'))
+    print(test.port_return('ts_weight'))
+    # print(FactorBacktest.mutually_exclusive(FactorBacktest, 
+    #                                         factors=['mom', 
+    #                                                 'beta', 
+    #                                                 'vol', 
+    #                                                 'prophet']))
+
 
