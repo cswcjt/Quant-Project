@@ -20,7 +20,7 @@ class TimeSeries:
     def __init__(self, port_rets: pd.Series, 
                 cs_weight: pd.DataFrame, 
                 risk_tolerance: str,
-                call_method: int,
+                call_method: str,
                 ):
         """_summary_
         Args:
@@ -34,9 +34,9 @@ class TimeSeries:
         self.cs_weight = cs_weight
         self.call_method = call_method
         
-        weight_dict = {'aggressive': {'ew': 0.7},
-                        'moderate': {'ew': 0.5},
-                        'conservative': {'ew': 0.3}
+        weight_dict = {'aggressive': {'ew': 1},
+                        'moderate': {'ew': 0.7},
+                        'conservative': {'ew': 0.5}
                         }
         self.target_risk = weight_dict[risk_tolerance][call_method]
         
@@ -145,7 +145,7 @@ class TimeSeries:
 
     #     return weight_history.shift(1).fillna(0)
     
-    def run(self):
+    def weight(self):
         method = self.call_method
         cs_weight = self.cs_weight
         
@@ -172,8 +172,9 @@ class TimeSeries:
         cs_ts_port_weight = cs_weight.multiply(ts_weight['PORTFOLIO'], axis=0)
         cs_ts_port_weight['CASH'] = ts_weight["CASH"]
         cs_ts_port_weight.dropna(inplace=True)
+        #cs_ts_port_weight.fillna(0, inplace=True)
         
-        return ts_weight, cs_ts_port_weight
+        return ts_weight#, cs_ts_port_weight
     
     
 if __name__ == '__main__':
@@ -183,7 +184,7 @@ if __name__ == '__main__':
     equity_universe = equity_df.loc['2011':,].dropna(axis=1)
     signal = pd.read_csv(path + '/result/mom_signal.csv', index_col=0)
     
-    ew_weight = Equalizer(signal, equity_universe, 'quarter').ew()
+    ew_weight = Equalizer(signal, equity_universe, 'quarter', 'ew').weight()
     
     factor_portval = calculate_portvals(price_df=equity_universe, 
                                         weight_df=ew_weight, 
@@ -195,14 +196,21 @@ if __name__ == '__main__':
     ts_weights, ts_ew_weight = TimeSeries(port_rets=factor_cum_rets, 
                                         cs_weight=ew_weight, 
                                         risk_tolerance='conservative',
-                                        call_method='cppi', 
+                                        call_method='ew', 
                                         )\
-                                        .run()       
+                                        .weight()       
     print(ts_weights)
-    print()
-    print(ts_ew_weight[(ts_ew_weight.sum(axis=1) != 1)])
-    print()
-    print(ts_ew_weight[(ts_ew_weight.sum(axis=1) != 1)].index)
-    print(ts_ew_weight[(ts_ew_weight.sum(axis=1) != 1)].sum(axis=1))
-    print()
-    print(ew_weight.loc[ts_ew_weight[(ts_ew_weight.sum(axis=1) != 1)].index].sum(axis=1))
+    print(ts_ew_weight)
+    # print(ts_ew_weight[(ts_ew_weight.sum(axis=1) != 1)])
+    # print()
+    # print(ts_ew_weight[(ts_ew_weight.sum(axis=1) != 1)].index)
+    # print(ts_ew_weight[(ts_ew_weight.sum(axis=1) != 1)].sum(axis=1))
+    # print()
+    # print(ew_weight.loc[ts_ew_weight[(ts_ew_weight.sum(axis=1) != 1)].index].sum(axis=1))
+
+    # factor_portval = calculate_portvals(price_df=equity_universe, 
+    #                                     weight_df=ew_weight, 
+    #                                     signal_df=signal,
+    #                                     long_only=True
+    #                                     )
+    # factor_cum_rets = port_rets(factor_portval, cumulative=True) 
