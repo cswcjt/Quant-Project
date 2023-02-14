@@ -2,6 +2,7 @@ class Chart {
     constructor() {
         this.height = 350;
         this.chartObject = new Object();
+        this.isLoading = true;
 
         axios.defaults.xsrfCookieName = 'csrftoken';
 		axios.defaults.xsrfHeaderName = 'X-CSRFToken';
@@ -58,6 +59,17 @@ class Chart {
         chart.updateSeries(data);
     }
 
+    progressLoading(status) {
+        this.isLoading = status;
+        const progressLoading = document.querySelector('.progress-loading');
+
+        if (this.isLoading == false) {
+            progressLoading.classList.add('d-none');
+        } else {
+            progressLoading.classList.remove('d-none');
+        }
+    }
+
     getAxios(url, method, formData=null) {
         const self = this;
         let kwargs = {
@@ -91,7 +103,11 @@ class Chart {
             })
         }).catch(function (err) {
             console.error(err);
-        })
+        }).finally(function () {
+            self.progressLoading(false);
+        });
+        
+       
     }
 
     requestGet(url) {
@@ -103,6 +119,8 @@ class Chart {
             e.preventDefault();
 
             const formData = new FormData(e.target);
+
+            this.progressLoading(true);
             this.getAxios(url, 'post', formData);
         });
     }
