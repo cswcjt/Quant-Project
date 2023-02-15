@@ -8,6 +8,7 @@ from rest_framework.views import APIView
 
 from dashboard.services import (
     PJT_PATH,
+    daily_to_period,
     get_factor_returns, 
     color_pick,
     request_transform
@@ -80,9 +81,14 @@ class PortfolioAPIView(APIView):
         param = request_transform(request)
         names = ['Portfolilo', 'S&P500']
         
+        # get s&p500 data
         sp500 = yf.download('SPY', start=param['start_date'], end=param['end_date'], progress=False)
-        sp500_report = Metric(portfolio=sp500, freq=param['rebal_freq'])
+        sp500 = daily_to_period(sp500, param['rebal_freq'], include_first_date=False)
+        
+        # get portfolio data for request
         portfolio = get_factor_returns(param)
+        
+        sp500_report = Metric(portfolio=sp500, freq=param['rebal_freq'])
         portfolio_report = Metric(portfolio=portfolio, freq=param['rebal_freq'])
         
         method_dict = {

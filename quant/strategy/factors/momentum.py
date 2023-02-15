@@ -8,7 +8,7 @@ from pathlib import Path
 PJT_PATH = Path(__file__).parents[3]
 sys.path.append(str(PJT_PATH))
 from quant.price.price_processing import rebal_dates, price_on_rebal
-from scaling import annualize_scaler
+from scaling import annualize_scaler, convert_freq
 
 # 주식 모멘텀 클래스
 class MomentumFactor:
@@ -18,7 +18,7 @@ class MomentumFactor:
     """
     
     def __init__(self, price_df: pd.DataFrame,
-                 freq: str='M', lookback_window: int=12,
+                 freq: str='M', lookback_window: int=1,
                  n_sel: int=20, long_only: bool=True):
         """초기화 함수
         Args:
@@ -31,11 +31,10 @@ class MomentumFactor:
             long_only (bool, optional): 
                 - bool -> 매수만 가능한지 아님 공매도까지 가능한지 결정. Defaults to True.
         """
-        
-        self.lookback_window = lookback_window
+        self.freq = convert_freq(freq)
+        self.lookback_window = lookback_window * annualize_scaler(self.freq)
         self.rebal_dates_list = rebal_dates(price_df, 
-                                            period=freq,
-                                            include_first_date=True)
+                                            period=self.freq)
         
         self.rets = price_df.loc[self.rebal_dates_list, :].pct_change(self.lookback_window).dropna()
         self.n_sel = n_sel
@@ -66,7 +65,7 @@ class MomentumFactor:
         else:
             signal = long_signal + short_signal
         
-        return signal.iloc[self.lookback_window:,]#.dropna(inplace=True)
+        return signal#.dropna(inplace=True)
     
     # 상대 모멘텀 시그널 계산 함수
     def relative_momentum(self) -> pd.DataFrame:
@@ -100,7 +99,7 @@ class MomentumFactor:
         else:
             signal = long_signal + short_signal
 
-        return signal.iloc[self.lookback_window:,]#.dropna(inplace=True)
+        return signal#.dropna(inplace=True)
     
     # 듀얼 모멘텀 시그널 계산 함수
     def dual_momentum(self) -> pd.DataFrame:
