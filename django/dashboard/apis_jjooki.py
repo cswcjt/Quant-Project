@@ -46,16 +46,23 @@ def date_transform(request_date: str, rebal_date: list):
 ## request data를 받아서 backtest에 필요한 데이터로 변환
 def request_transform(request: dict):
     data = request.data
-    freq = convert_freq[data['rebalancing_period']]
+    try:
+        freq = convert_freq[data['rebalancing_period']]
+    except:
+        freq = 'month'
     
-    factors = []
-    for factor in data.getlist('factor'):
-        if factor == 'momentum':
-            factors.append('mom')
-        elif factor == 'volatility':
-            factors.append('vol')
-        else:
-            factors.append(factor)
+    try:
+        factors = []
+        for factor in data.getlist('factor'):
+            if factor == 'momentum':
+                factors.append('mom')
+            elif factor == 'volatility':
+                factors.append('vol')
+            else:
+                factors.append(factor)
+    except:
+        factors = ['beta', 'mom', 'vol', 'prophet']
+        
     
     convert_weights = {
         'equal_weights' : 'ew',
@@ -68,15 +75,25 @@ def request_transform(request: dict):
     
     with open(PJT_PATH / 'dashboard' / 'pickle' / f"rebal_dates_{freq}.pkl", 'rb') as f:
         rebal_dates = pickle.load(f)
-    
-    res = {
-        "start_date" : data['start_date'],
-        "end_date" : date_transform(data['end_date'], rebal_dates),
-        "factor" : factors,
-        "cs_model" : convert_weights[data['weights']],
-        "risk_tolerance" : data['risk_tolerance'],
-        "rebal_freq" : freq,
-    }
+        
+    try:
+        res = {
+            "start_date" : data['start_date'],
+            "end_date" : date_transform(data['end_date'], rebal_dates),
+            "factor" : factors,
+            "cs_model" : convert_weights[data['weights']],
+            "risk_tolerance" : data['risk_tolerance'],
+            "rebal_freq" : freq,
+        }
+    except:
+        res = {
+            "start_date" : '2011-01-03',
+            "end_date" : '2022-12-30',
+            "factor" : factors,
+            "cs_model" : 'ew',
+            "risk_tolerance" : 'aggressive',
+            "rebal_freq" : freq,
+        }
     return res
 
 def factor_api(request):
@@ -265,9 +282,27 @@ def portfolio_api(request):
 
     for key in key_list:
         data['metric'][key] = [{'name': name,
+                                'title': key_dict[key],
                                 'data': report_dict[name].numeric_metric()[key],
                                 'color': color_pick(report_dict[name][key]),
                                 } for name in names]
+        
+    """
+    data['metric'] = {
+        'returns': [{'name': 'Portfolilo',
+                     'title': 'Total Returns',
+                     'data': 0.1,
+                     'color': '#ea5050'},
+                    {'name': 'S&P500',
+                     'title': 'Total Returns',
+                     'data': -0.1,
+                     'color': '#5050ea'}],
+        
+        'CAGR': [{'name': 'Portfolilo', 'title': 'CAGR', 'data': 0.1, 'color': '#ea5050'},
+                 {'name': 'S&P500', 'title': 'CAGR', 'data': -0.1, 'color': '#5050ea'}],
+        ...
+    }
+    """
         
     print(data)
     
