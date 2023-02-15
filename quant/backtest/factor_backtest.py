@@ -24,11 +24,11 @@ class FactorBacktest:
                 start_date: str, 
                 end_date: str, 
                 rebal_freq: str,
-                factor: str, 
                 cs_model: str,
                 risk_tolerance: str, 
                 all_assets: pd.DataFrame, 
                 business_cycle: pd.DataFrame,
+                factor: str='mom',
                 alter_asset_list: list=['TLT', 'GSG', 'VNQ', 'UUP'], 
                 benchmark_name: str='SPY', 
                 ts_model: str='ew'
@@ -93,7 +93,7 @@ class FactorBacktest:
                         'prophet': 'load_csv',
                         'vol': VolatilityFactor,
                         }
-        self.factor = factor
+        
         self.factor_instance = factor_dict[self.factor]  
         self.daily_price_df = self.all_assets_df.drop(columns=self.alter_asset_list)
         self.signal = self.factor_signal()

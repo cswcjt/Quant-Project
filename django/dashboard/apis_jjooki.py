@@ -194,10 +194,9 @@ def portfolio_api(request):
     path = PJT_PATH / 'quant'
     param = request_transform(request)
     factors = param['factor']
+    
     if 'factor' in param:
         del param['factor']
-    
-    param['factor'] = 'beta'
     
     all_assets_df = pd.read_csv(path / 'alter_with_equity.csv', index_col=0)
     all_assets_df.index = pd.to_datetime(all_assets_df.index)
@@ -213,9 +212,9 @@ def portfolio_api(request):
     names = ['Portfolilo', 'S&P500']
     
     sp500 = yf.download('SPY', start=param['start_date'], end=param['end_date'], progress=False)
-    sp500_report = Metric(portfolio=sp500, freq='D')
+    sp500_report = Metric(portfolio=sp500, freq='M')
     portfolio = test.factor_rets(factors=factors)
-    portfolio_report = Metric(portfolio=portfolio, freq='daily')
+    portfolio_report = Metric(portfolio=portfolio, freq='M')
     
     method_dict = {
         'Portfolilo': portfolio_report,
