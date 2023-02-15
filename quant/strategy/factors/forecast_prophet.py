@@ -1,7 +1,7 @@
 import itertools
 import json
 import os
-import time
+import pickle
 
 import numpy as np
 import pandas as pd
@@ -269,7 +269,7 @@ class ProphetFactor:
 import yfinance as yf
 
 if __name__ == '__main__':
-    load_path = PJT_PATH / 'quant' / 'strategy' / 'factors' / 'returns'
+    load_path = PJT_PATH / 'quant' / 'strategy' / 'factors' / 'data'
     
     df = pd.read_csv(PJT_PATH / 'asset_universe.csv', index_col=0)
     df.index = pd.to_datetime(df.index)
@@ -277,8 +277,11 @@ if __name__ == '__main__':
     prophet = ProphetFactor(df, freq='month',
                             lookback=0.5, long_only=True)
     
-    prophet.save_returns(num=2)
-    
+    rets = prophet.load_returns(num=1).drop(columns=['SPY', 'TLT', 'GSG', 'VNQ', 'UUP'])
+    signal = prophet.calc_signal(rets, n_sel=20)
+    print(signal)
+    with open(PJT_PATH / 'django' / 'dashboard' / 'pickle' / 'prophet_signal.pickle', 'wb') as f:
+        pickle.dump(signal, f)
     # rets = prophet.rebal_price.pct_change().dropna()
     # # print(rets)
     

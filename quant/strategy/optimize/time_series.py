@@ -53,7 +53,7 @@ class TimeSeries:
             pd.DataFrame: 투자비중 df
         """
         weights = pd.DataFrame({'PORTFOLIO': self.target_risk}, 
-                                index=self.port_rets.index)
+                                index=self.cs_weight.index)
         
         return weights
 
@@ -170,9 +170,9 @@ class TimeSeries:
         #     ts_weight = self.cppi()
             
         # ts weight만 확인
-        ts_weight = pd.concat([ts_weight, 1-ts_weight], axis=1, join='inner')
+        ts_weight = pd.concat([ts_weight, 1-ts_weight], axis=1)#, join='inner')
         ts_weight.columns = ['PORTFOLIO', 'CASH']
-
+        
         # cs weight에 ts weight 적용한 최종 투자비중 산출
         cs_ts_port_weight = cs_weight.multiply(ts_weight['PORTFOLIO'], axis=0)
         cs_ts_port_weight['CASH'] = ts_weight["CASH"]

@@ -174,6 +174,15 @@ def portfolio_api(request):
     대충 테스트를 위해서 만든거라 코드 개떡같음 
     백테스팅해서 넘길 json 값을 APEXCHARTS 형식에 맞게 수정이 필요할 수도 있음
     
+    [['beta', 'mom', 'vol', 'prophet'], ['beta', 'mom', 'vol'],
+     ['beta', 'mom', 'prophet'], ['beta', 'vol', 'prophet'],
+     ['mom', 'vol', 'prophet'], ['beta', 'mom'], ['beta', 'vol'], ['beta', 'prophet'],
+     ['mom', 'vol'], ['mom', 'prophet'], ['vol', 'prophet'],
+     ['beta'], ['mom'], ['vol'], ['prophet']]]
+     
+    ['ew', 'emv', 'msr', 'gmv', 'mdp', 'rp']
+    ['aggressive', 'moderate', 'conservative']
+    
     param = {
         "start_date" : '2013-01-01',
         "end_date" : '2022-12-31',
@@ -213,6 +222,7 @@ def portfolio_api(request):
     
     sp500 = yf.download('SPY', start=param['start_date'], end=param['end_date'], progress=False)
     sp500_report = Metric(portfolio=sp500, freq=param['rebal_freq'])
+    
     portfolio = test.factor_rets(factors=factors)
     portfolio_report = Metric(portfolio=portfolio, freq=param['rebal_freq'])
     
@@ -287,8 +297,8 @@ def portfolio_api(request):
     for key in key_list:
         data['metric'][key] = [{'name': name,
                                 'title': key_dict[key],
-                                'data': report_dict[name].numeric_metric()[key],
-                                'color': color_pick(report_dict[name][key]),
+                                'data': report_dict[name][key],
+                                'color': color_pick(float(report_dict[name][key])),
                                 } for name in names]
         
     """
