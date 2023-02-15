@@ -212,14 +212,15 @@ def portfolio_api(request):
     names = ['Portfolilo', 'S&P500']
     
     sp500 = yf.download('SPY', start=param['start_date'], end=param['end_date'], progress=False)
-    sp500_report = Metric(portfolio=sp500, freq='M')
+    sp500_report = Metric(portfolio=sp500, freq=param['rebal_freq'])
     portfolio = test.factor_rets(factors=factors)
-    portfolio_report = Metric(portfolio=portfolio, freq='M')
+    portfolio_report = Metric(portfolio=portfolio, freq=param['rebal_freq'])
     
     method_dict = {
         'Portfolilo': portfolio_report,
         'S&P500': sp500_report,
     }
+    
     report_dict = {
         'Portfolilo': portfolio_report.numeric_metric(),
         'S&P500': sp500_report.numeric_metric(),

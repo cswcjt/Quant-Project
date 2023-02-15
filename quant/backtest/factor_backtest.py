@@ -10,6 +10,7 @@ PJT_PATH = Path(__file__).parents[2]
 sys.path.append(str(PJT_PATH))
 #from backtest.metric import Metric
 #from metric import Metric
+from scaling import annualize_scaler
 from quant.price.price_processing import convert_freq, add_cash, rebal_dates, price_on_rebal, calculate_portvals, port_rets
 from quant.strategy.factors.beta import BetaFactor
 from quant.strategy.factors.momentum import MomentumFactor
@@ -111,8 +112,8 @@ class FactorBacktest:
         self.cs_weight = self.cross_weight()
         
         # 최적화(cs)가 끝난 포트폴리오의 수익률 계산 결과
-        self.cs_port_cum_rets = self.port_return('cs_weight', cumulative=False)
-        self.cs_port_daily_rets = self.port_return('cs_weight', cumulative=False)
+        self.cs_port_cum_rets = self.port_return(cumulative=True)
+        self.cs_port_daily_rets = self.port_return(cumulative=False)
         
         # 최적화(ts) 선택
         ts_dict = {'ew': TimeSeries}
@@ -122,7 +123,7 @@ class FactorBacktest:
         self.ts_weight, self.ts_cs_weight = self.time_weight()
         
         # 최적화(ts)가 끝난 포트폴리오의 수익률 계산 결과
-        self.ts_port_cum_rets = self.port_return('ts_weight', cumulative=False)
+        self.ts_port_cum_rets = self.port_return('ts_weight', cumulative=True)
         self.ts_port_daily_rets = self.port_return('ts_weight', cumulative=False)
         
         self.business_cycle = business_cycle.loc[self.start_date:self.end_date,]
@@ -154,7 +155,7 @@ class FactorBacktest:
             return factor_signal 
         
         elif class_instance == 'load_csv':
-            factor_signal = pd.read_csv(PJT_PATH / 'quant' / 'prophet_signal.csv',
+            factor_signal = pd.read_csv(PJT_PATH / 'quant'/ 'strategy' / 'factors' / 'data' / 'prophet_signal.csv',
                                         index_col=0,
                                         parse_dates=True)
             
@@ -202,8 +203,10 @@ class FactorBacktest:
             
             return ts_weight, ts_cs_weight
 
-    def port_return(self, cumulative: bool=True, 
-                    long_only: bool=True) -> pd.Series:
+    def port_return(self, weight_name: str='cs_weight',
+                    freq: str='D', cumulative: bool=True, 
+                    long_only: bool=True, yearly_rfr: float=0.03
+                    ) -> pd.Series:
         """_summary_
 
         Args:
@@ -215,12 +218,25 @@ class FactorBacktest:
         Returns:
             pd.Series: 수익률 pd.Series
         """
-        _, ts_cs_weight = self.time_weight()
-        price_df = add_cash(self.daily_price_df, 252, 0.03)
-        port_value = calculate_portvals(price_df, ts_cs_weight, self.signal, long_only)
-        port_returns = port_rets(port_value, cumulative)
-        
-        return port_returns
+        if weight_name == 'cs_weight':
+            weight = self.cross_weight()
+            port_value = calculate_portvals(self.daily_price_df, 
+                                            weight, 
+                                            self.signal, 
+                                            long_only)
+            port_returns = port_rets(port_value, 
+                                    cumulative)
+
+            return port_returns
+
+        elif weight_name == 'ts_weight':
+            _, ts_cs_weight = self.time_weight()
+            weight = ts_cs_weight
+            price_df = add_cash(self.daily_price_df, 252, 0.03)
+            port_value = calculate_portvals(price_df, ts_cs_weight, self.signal, long_only)
+            port_returns = port_rets(port_value, cumulative)
+
+            return port_returns
         
     def factor_rets(self, factors: list) -> pd.DataFrame:
         
@@ -242,12 +258,15 @@ class FactorBacktest:
         return self.factor_rets(factors=factors).corr(numeric_only=True)
     
 if __name__ == '__main__':
-    path = '/Users/jtchoi/Library/CloudStorage/GoogleDrive-jungtaek0227@gmail.com/My Drive/quant/Quant-Project/quant'
-    all_assets_df = pd.read_csv(path + '/alter_with_equity.csv', index_col=0)
+    path = PJT_PATH / 'quant'
+    
+    all_assets_df = pd.read_csv(path / 'alter_with_equity.csv', index_col=0)
     all_assets_df.index = pd.to_datetime(all_assets_df.index)
     all_assets_df = all_assets_df.loc['2011':,].dropna(axis=1)
+    
     alter_asset_list=['TLT', 'GSG', 'VNQ', 'UUP']
-    bs_df = pd.read_csv(path + '/business_cycle.csv', index_col=0)
+    
+    bs_df = pd.read_csv(path / 'business_cycle.csv', index_col=0)
     bs_df.index = pd.to_datetime(bs_df.index)
 
     #prophet_signal = pd.read_csv(path + '/prophet_signal.csv', index_col=0)
