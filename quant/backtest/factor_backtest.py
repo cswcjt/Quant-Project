@@ -72,10 +72,10 @@ class FactorBacktest:
         self.end_date = end_date
         self.rebal_freq = convert_freq(rebal_freq)
         
-        self.all_assets_df = all_assets
+        self.all_assets = all_assets
         self.bs_df = business_cycle
         
-        # 데이터 슬라이싱 
+        # 데이터 슬라이싱
         self.all_assets_df = all_assets.loc[self.start_date:self.end_date, :]
         self.rebal_dates_list = rebal_dates(self.all_assets_df, self.rebal_freq)
         
@@ -245,15 +245,16 @@ class FactorBacktest:
         
         port_rets_dict = {}
         for factor in factors:
-            port_rets_dict[factor] = FactorBacktest(start_date='2011-01-01', 
-                                                    end_date='2022-12-31', 
-                                                    rebal_freq='month', 
+            port_rets_dict[factor] = FactorBacktest(start_date=self.start_date, 
+                                                    end_date=self.end_date, 
+                                                    rebal_freq=self.rebal_freq, 
                                                     factor=factor, 
-                                                    cs_model='ew', 
-                                                    risk_tolerance='moderate',
+                                                    cs_model=self.cs_model, 
+                                                    risk_tolerance=self.risk_tolerance,
                                                     all_assets=self.all_assets_df, 
                                                     business_cycle=self.bs_df
-                                                    ).port_return('cs_weight', cumulative=False)
+                                                    ).port_return(weight_name='cs_weight',
+                                                                  cumulative=False)
         df = pd.DataFrame(port_rets_dict)
         return df
     
