@@ -1,3 +1,4 @@
+import itertools
 import pickle
 import sys
 import pandas as pd
@@ -117,7 +118,6 @@ def request_transform(request: dict):
         }
     return res
 
-
 def get_factor_returns(param):
     path = PJT_PATH / 'quant'
     factors = param['factor']
@@ -151,6 +151,25 @@ def color_pick(returns):
     else:
         return '#5050ea'
 
+def make_all_params():
+    param_grid = {
+        "start_date": ['2011-01-03'],
+        "end_date": ['2022-12-30'],
+        "factor": [['beta', 'mom', 'vol', 'prophet'], ['beta', 'mom', 'vol'],
+                   ['beta', 'mom', 'prophet'], ['beta', 'vol', 'prophet'],
+                   ['mom', 'vol', 'prophet'], ['beta', 'mom'], ['beta', 'vol'],
+                   ['beta', 'prophet'], ['mom', 'vol'], ['mom', 'prophet'],
+                   ['vol', 'prophet'], ['beta'], ['mom'], ['vol'], ['prophet']],
+        "cs_model": ['ew', 'emv', 'msr', 'gmv', 'mdp', 'rp'],
+        "risk_tolerance": ['conservative', 'moderate', 'aggressive'],
+        "rebal_freq": ['month', 'quarter', 'half_year', 'year'],
+    }
+    return [dict(zip(param_grid.keys(), v)) for v in itertools.product(*param_grid.values())]
+    
+def save_pickle(data, name):
+    with open(PJT_PATH / 'django' / 'dashboard' / 'pickle' / 'factor' / name, 'wb') as f:
+        pickle.dump(data, f)
+
 import yfinance as yf
 
 if __name__ == '__main__':
@@ -162,8 +181,9 @@ if __name__ == '__main__':
         "risk_tolerance" : 'aggressive',
         "rebal_freq" : 'month',
     }
-    rets = get_factor_returns(param)
-    print(rets)
-    sp500 = yf.download('SPY', start=param['start_date'], end=param['end_date'], progress=False)
-    sp500 = daily_to_period(sp500, param['rebal_freq'])
-    print(sp500)
+    # rets = get_factor_returns(param)
+    # print(rets)
+    # sp500 = yf.download('SPY', start=param['start_date'], end=param['end_date'], progress=False)['Adj Close']
+    # sp500 = daily_to_period(sp500, param['rebal_freq'], include_first_date=False)
+    # print(sp500)
+    print(make_all_params())
