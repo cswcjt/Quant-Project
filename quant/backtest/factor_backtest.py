@@ -73,7 +73,7 @@ class FactorBacktest:
         self.rebal_freq = convert_freq(rebal_freq)
         
         self.all_assets_df = all_assets
-        self.bs_df = bs_df
+        self.bs_df = business_cycle
         
         # 데이터 슬라이싱 
         self.all_assets_df = all_assets.loc[self.start_date:self.end_date, :]

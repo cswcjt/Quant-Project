@@ -1,8 +1,20 @@
 import random
+import pandas as pd
+import yfinance as yf
 
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
+
+from dashboard.services import (
+    PJT_PATH, 
+    date_transform, 
+    color_pick, 
+    request_transform
+)
+
+from quant.backtest.factor_backtest import FactorBacktest
+from quant.backtest.metric import Metric
 
 
 class FactorAPIView(APIView):
@@ -63,37 +75,139 @@ class MarketAPIView(APIView):
 
 
 class PortfolioAPIView(APIView):
-    def get_data(self):
+    def get_data(self, request):
+        path = PJT_PATH / 'quant'
+        param = request_transform(request)
+        factors = param['factor']
+    
+        if 'factor' in param:
+            del param['factor']
+        
+        all_assets_df = pd.read_csv(path / 'alter_with_equity.csv', index_col=0)
+        all_assets_df.index = pd.to_datetime(all_assets_df.index)
+        all_assets_df = all_assets_df.loc['2011':,].dropna(axis=1)
+        
+        bs_df = pd.read_csv(path / 'business_cycle.csv', index_col=0)
+        bs_df.index = pd.to_datetime(bs_df.index)
+
+        test = FactorBacktest(
+            all_assets=all_assets_df, 
+            business_cycle=bs_df,
+            **param)
+        
         names = ['Portfolilo', 'S&P500']
-        return {
+        
+        sp500 = yf.download('SPY', start=param['start_date'], end=param['end_date'], progress=False)
+        sp500_report = Metric(portfolio=sp500, freq=param['rebal_freq'])
+        portfolio = test.factor_rets(factors=factors)
+        portfolio_report = Metric(portfolio=portfolio, freq=param['rebal_freq'])
+        
+        method_dict = {
+            'Portfolilo': portfolio_report,
+            'S&P500': sp500_report,
+        }
+        
+        report_dict = {
+            'Portfolilo': portfolio_report.numeric_metric(),
+            'S&P500': sp500_report.numeric_metric(),
+        }
+
+        data = {
             'cumulative': {
-                'data': [{'name': name, 'data': random.sample(list(range(0, 101)), 11)} for name in names],
+                'data': [{'name': name,
+                        'data': [{'x': time, 'y': cum_rets} \
+                            for time, cum_rets \
+                                in zip(method_dict[name].cum_rets.index, method_dict[name].cum_rets.values)]
+                        } for name in names],
                 'type': 'area',
                 'height': 350,
                 'colors': ['#FF6384', '#00B1E4']
             },
 
             'mdd': {
-                'data': [{'name': name, 'data': random.sample(list(range(0, 51)), 10)} for name in names],
+                'data': [{'name': name,
+                        'data': [{'x': time, 'y': cum_rets} \
+                            for time, cum_rets \
+                                in zip(method_dict[name].drawdown().index, method_dict[name].drawdown().values)]
+                        } for name in names],
                 'type': 'area',
                 'height': 190,
                 'colors': ['#a9a0fc', '#e2e2e2']
             },
 
             'rolling_sharp_ratio': {
-                'data': [{'name': name, 'data': random.sample(list(range(0, 51)), 10)} for name in names],
+                'data': [{'name': name,
+                        'data': [{'x': time, 'y': cum_rets} \
+                            for time, cum_rets \
+                                in zip(method_dict[name].sharp_ratio(rolling=True, lookback=1).dropna().index,
+                                        method_dict[name].sharp_ratio(rolling=True, lookback=1).dropna().values)
+                                ]
+                        } for name in names],
                 'type': 'area',
                 'height': 190,
                 'colors': ['#a9a0fc', '#e2e2e2']
             },
+            
+            'metric': {},
         }
+        
+        # metric key list
+        key_dict = {
+            'returns': 'Total Returns',
+            'CAGR': 'CAGR',
+            'MDD': 'MDD',
+            'MDD_duration': 'Underwater Period',
+            'volatility': 'Anuallized Volatility',
+            'sharp': 'Sharpe Ratio',
+            'sortino': 'Sortino Ratio',
+            'calmar': 'Calmar Ratio',
+            'CVaR_ratio': 'CVaR Ratio',
+            'hit': 'Hit Ratio',
+            'GtP': 'Gain-to-Pain'
+        }
+        
+        key_list = ['returns', 'CAGR', 'MDD', 'MDD_duration',
+                    'volatility', 'sharp', 'sortino', 'calmar',
+                    'CVaR_ratio', 'hit', 'GtP']
+
+        for key in key_list:
+            data['metric'][key] = [{'name': name,
+                                    'data': report_dict[name][key],
+                                    'color': color_pick(float(report_dict[name][key])),
+                                    } for name in names]
+
+        return data
+
+        # names = ['Portfolilo', 'S&P500']
+        # return {
+        #     'cumulative': {
+        #         'data': [{'name': name, 'data': random.sample(list(range(0, 101)), 11)} for name in names],
+        #         'type': 'area',
+        #         'height': 350,
+        #         'colors': ['#FF6384', '#00B1E4']
+        #     },
+
+        #     'mdd': {
+        #         'data': [{'name': name, 'data': random.sample(list(range(0, 51)), 10)} for name in names],
+        #         'type': 'area',
+        #         'height': 190,
+        #         'colors': ['#a9a0fc', '#e2e2e2']
+        #     },
+
+        #     'rolling_sharp_ratio': {
+        #         'data': [{'name': name, 'data': random.sample(list(range(0, 51)), 10)} for name in names],
+        #         'type': 'area',
+        #         'height': 190,
+        #         'colors': ['#a9a0fc', '#e2e2e2']
+        #     },
+        # }
 
     def get(self, request, *args, **kwargs):
-        data = self.get_data()
+        data = self.get_data(request)
+        print(data)
         return Response(data=data, status=status.HTTP_200_OK)
 
     def post(self, request, *args, **kwargs):
         print(request.data)
-        data = self.get_data()
+        data = self.get_data(request)
         return Response(data=data, status=status.HTTP_200_OK)
-        
