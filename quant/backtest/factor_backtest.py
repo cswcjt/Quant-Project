@@ -137,9 +137,9 @@ class FactorBacktest:
         price_df = self.daily_price_df
         
         if class_instance == BetaFactor:
-            factor_signal = class_instance(equity_with_benchmark=price_df, 
-                                        benchmark_ticker=self.benchmark_name)\
-                                        .signal()
+            factor_signal = class_instance(equity_with_benchmark=price_df,
+                                           benchmark_ticker=self.benchmark_name
+                                           ).signal()
             
             return factor_signal
         
@@ -154,10 +154,9 @@ class FactorBacktest:
             return factor_signal 
         
         elif class_instance == 'load_csv':
-            factor_signal = pd.read_csv(path + 
-                                    '/prophet_signal.csv', 
-                                    index_col=0, 
-                                    parse_dates=True)
+            factor_signal = pd.read_csv(PJT_PATH / 'quant' / 'prophet_signal.csv',
+                                        index_col=0,
+                                        parse_dates=True)
             
             return factor_signal
         
@@ -174,20 +173,16 @@ class FactorBacktest:
         cs_model = self.cs_model 
         
         if class_instance == Equalizer:
-            weight = class_instance(factor_signal, 
-                                    price_df, 
-                                    rebal_period, 
-                                    cs_model)\
-                                    .weight()
+            weight = class_instance(factor_signal, price_df, 
+                                    rebal_period, cs_model
+                                    ).weight()
             
             return weight
         
         elif class_instance == Optimization:
-            weight = class_instance(factor_signal, 
-                                    price_df, 
-                                    rebal_period, 
-                                    cs_model)\
-                                    .weight()
+            weight = class_instance(factor_signal, price_df, 
+                                    rebal_period, cs_model
+                                    ).weight()
             
             return weight
         
@@ -207,8 +202,7 @@ class FactorBacktest:
             
             return ts_weight, ts_cs_weight
 
-    def port_return(self, weight_name: str, 
-                    cumulative: bool=True, 
+    def port_return(self, cumulative: bool=True, 
                     long_only: bool=True) -> pd.Series:
         """_summary_
 
@@ -221,32 +215,14 @@ class FactorBacktest:
         Returns:
             pd.Series: 수익률 pd.Series
         """
-        if weight_name == 'cs_weight':
-            weight = self.cross_weight()
-            port_value = calculate_portvals(self.daily_price_df, 
-                                            weight, 
-                                            self.signal, 
-                                            long_only)
-            port_returns = port_rets(port_value, 
-                                    cumulative)
-            
-            return port_returns
-        
-        elif weight_name == 'ts_weight':
-            _, ts_cs_weight = self.time_weight()
-            weight = ts_cs_weight
-            price_df = add_cash(self.daily_price_df, 252, 0.03)
-            port_value = calculate_portvals(price_df, ts_cs_weight, self.signal, long_only)
-            port_returns = port_rets(port_value, cumulative)
-            
-            return port_returns
-            
-        port_value = calculate_portvals(self.daily_price_df, weight, self.signal, long_only)
+        _, ts_cs_weight = self.time_weight()
+        price_df = add_cash(self.daily_price_df, 252, 0.03)
+        port_value = calculate_portvals(price_df, ts_cs_weight, self.signal, long_only)
         port_returns = port_rets(port_value, cumulative)
         
         return port_returns
         
-    def mutually_exclusive(self, factors: list) -> pd.DataFrame:
+    def factor_rets(self, factors: list) -> pd.DataFrame:
         
         port_rets_dict = {}
         for factor in factors:
@@ -260,8 +236,10 @@ class FactorBacktest:
                                                     business_cycle=bs_df
                                                     ).port_return('cs_weight', cumulative=False)
         df = pd.DataFrame(port_rets_dict)
-        
-        return df.corr(numeric_only=True)
+        return df
+    
+    def mutually_exclusive(self, factors: list) -> pd.DataFrame:
+        return self.factor_rets(factors=factors).corr(numeric_only=True)
     
 if __name__ == '__main__':
     path = '/Users/jtchoi/Library/CloudStorage/GoogleDrive-jungtaek0227@gmail.com/My Drive/quant/Quant-Project/quant'

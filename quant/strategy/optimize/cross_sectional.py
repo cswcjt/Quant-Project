@@ -1,14 +1,17 @@
 # 패키지 임포트
+import sys
 import numpy as np
 import pandas as pd
 import yfinance as yf
-from pandas.tseries.offsets import *
 
-import sys
-sys.path.append('/Users/jtchoi/Library/CloudStorage/GoogleDrive-jungtaek0227@gmail.com/My Drive/quant/Quant-Project/quant')
+from pandas.tseries.offsets import *
+from pathlib import Path
+
+PJT_PATH = Path(__file__).parents[3]
+sys.path.append(str(PJT_PATH))
 
 from scaling import convert_freq, annualize_scaler
-from price.price_processing import rebal_dates
+from quant.price.price_processing import rebal_dates
 
 from scipy.optimize import minimize
 from scipy.stats import norm

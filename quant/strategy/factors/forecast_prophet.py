@@ -6,8 +6,6 @@ import time
 import numpy as np
 import pandas as pd
 
-from dask.distributed import Client
-from numba import njit, vectorize
 from prophet import Prophet
 from prophet.diagnostics import cross_validation
 from prophet.diagnostics import performance_metrics
@@ -267,10 +265,6 @@ class ProphetFactor:
                 + (abs_signal * short_signal.values)
             
         return signal
-
-"""
-_summary_
-"""
 
 import yfinance as yf
 
