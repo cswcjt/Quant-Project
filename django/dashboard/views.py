@@ -52,3 +52,7 @@ def portfolio(request):
         'metric_third': metric_third,
         'metric_last': metric_last,
     })
+
+
+def presentation(request):
+     return render(request, 'dashboard/container/presentation.html')
