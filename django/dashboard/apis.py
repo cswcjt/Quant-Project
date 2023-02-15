@@ -11,7 +11,9 @@ from dashboard.services import (
     daily_to_period,
     get_factor_returns, 
     color_pick,
-    request_transform
+    request_transform,
+    load_sp500,
+    load_pickle,
 )
 
 from quant.backtest.metric import Metric
@@ -82,11 +84,10 @@ class PortfolioAPIView(APIView):
         names = ['Portfolilo', 'S&P500']
         
         # get s&p500 data
-        sp500 = yf.download('SPY', start=param['start_date'], end=param['end_date'], progress=False)
-        sp500 = daily_to_period(sp500, param['rebal_freq'], include_first_date=False)
+        sp500 = load_sp500(param)
         
         # get portfolio data for request
-        portfolio = get_factor_returns(param)
+        portfolio = load_pickle(param)
         
         sp500_report = Metric(portfolio=sp500, freq=param['rebal_freq'])
         portfolio_report = Metric(portfolio=portfolio, freq=param['rebal_freq'])
