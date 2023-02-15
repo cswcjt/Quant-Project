@@ -10,4 +10,5 @@ urlpatterns = [
 	path('factor/', views.factor, name='factor'),
 	path('market/', views.market, name='market'),
 	path('portfolio/', views.portfolio, name='portfolio'),
+	path('presentation/', views.presentation, name='presentation'),
 ]
