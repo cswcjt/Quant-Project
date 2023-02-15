@@ -25,7 +25,7 @@ from quant.price.price_processing import rebal_dates
 from scaling import convert_freq, annualize_scaler
 """
 request.GET.get 구조 예시
-key -> {'start', 'end', 'period', 'risk tolerance', 'factor weights', 'factor'}
+key -> {'start_date', 'end_date', 'period', 'risk tolerance', 'factor weights', 'factor'}
 value ->
 'start' : {'2019-01-01'}
 """
@@ -46,6 +46,7 @@ def date_transform(request_date: str, rebal_date: list):
 ## request data를 받아서 backtest에 필요한 데이터로 변환
 def request_transform(request: dict):
     data = request.data
+    
     try:
         freq = convert_freq[data['rebalancing_period']]
     except:
@@ -62,7 +63,6 @@ def request_transform(request: dict):
                 factors.append(factor)
     except:
         factors = ['beta', 'mom', 'vol', 'prophet']
-        
     
     convert_weights = {
         'equal_weights' : 'ew',
@@ -73,7 +73,7 @@ def request_transform(request: dict):
         'risk_parity' : 'rp',
     }
     
-    with open(PJT_PATH / 'dashboard' / 'pickle' / f"rebal_dates_{freq}.pkl", 'rb') as f:
+    with open(PJT_PATH / 'django' / 'dashboard' / 'pickle' / f"rebal_dates_{freq}.pkl", 'rb') as f:
         rebal_dates = pickle.load(f)
         
     try:
@@ -99,7 +99,6 @@ def request_transform(request: dict):
 def factor_api(request):
     factor_name = ['beta', 'mom', 'vol', 'prophet']
     
-        
     # signals_name = ['beta', 'momentum', 'volatility', 'ai_forecast']
     # signals = [signal_beta, signal_momentum, signal_vol, signal_prophet]
     
@@ -194,6 +193,11 @@ def portfolio_api(request):
     
     path = PJT_PATH / 'quant'
     param = request_transform(request)
+    factors = param['factor']
+    if 'factor' in param:
+        del param['factor']
+    
+    param['factor'] = 'beta'
     
     all_assets_df = pd.read_csv(path / 'alter_with_equity.csv', index_col=0)
     all_assets_df.index = pd.to_datetime(all_assets_df.index)
@@ -208,9 +212,9 @@ def portfolio_api(request):
     
     names = ['Portfolilo', 'S&P500']
     
-    sp500 = yf.download('SPY', start=param['start_'], end=end, progress=False)
+    sp500 = yf.download('SPY', start=param['start_date'], end=param['end_date'], progress=False)
     sp500_report = Metric(portfolio=sp500, freq='D')
-    portfolio = test.port_return()
+    portfolio = test.factor_rets(factors=factors)
     portfolio_report = Metric(portfolio=portfolio, freq='daily')
     
     method_dict = {
