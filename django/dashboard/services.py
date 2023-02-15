@@ -96,7 +96,7 @@ def request_transform(request: dict):
         }
     except:
         res = {
-            "start_date" : '2011-01-03',
+            "start_date" : '2013-01-02',
             "end_date" : '2022-12-30',
             "factor" : factors,
             "cs_model" : 'ew',
@@ -106,7 +106,7 @@ def request_transform(request: dict):
     return res
 
 
-def get_factor_returns(param: dict):
+def get_factor_returns(param):
     path = PJT_PATH / 'quant'
     factors = param['factor']
 
@@ -126,6 +126,17 @@ def get_factor_returns(param: dict):
     
     rets = test.factor_rets(factors=factors).dropna()
     cum_rets = (1 + rets).cumprod()
+    
+    rebal_date = rebal_dates(cum_rets, period=param['rebal_freq'],
+                             include_first_date=True)
+    
+    if isinstance(cum_rets, pd.DataFrame):
+        cum_rets = cum_rets.loc[rebal_date, :]
+    elif isinstance(cum_rets, pd.Series):
+        cum_rets = cum_rets.loc[rebal_date]
+    else: 
+        raise TypeError('Invalid Type')
+    
     return cum_rets
 
 ## backtest 결과를 받아서 chart에 필요한 컬러로 변환

@@ -13,11 +13,13 @@ from dashboard.services import (
     request_transform
 )
 
-from quant.backtest.factor_backtest import FactorBacktest
 from quant.backtest.metric import Metric
 
-
 class FactorAPIView(APIView):
+    def get_data(self, request):
+        param = request_transform(request)
+        portfolio = get_factor_returns(param)
+    
     def get(self, request, *args, **kwargs):
         pass
 
@@ -73,7 +75,6 @@ class MarketAPIView(APIView):
         data = self.get_data(request)
         return Response(data=data, status=status.HTTP_200_OK)
 
-
 class PortfolioAPIView(APIView):
     def get_data(self, request):
         param = request_transform(request)
@@ -97,7 +98,7 @@ class PortfolioAPIView(APIView):
         data = {
             'cumulative': {
                 'data': [{'name': name,
-                        'data': [{'x': time, 'y': cum_rets} \
+                        'data': [{'x': time.strftime('%Y-%m'), 'y': f'{cum_rets: .2f}'} \
                             for time, cum_rets \
                                 in zip(method_dict[name].cum_rets.index, method_dict[name].cum_rets.values)]
                         } for name in names],
@@ -108,7 +109,7 @@ class PortfolioAPIView(APIView):
 
             'mdd': {
                 'data': [{'name': name,
-                        'data': [{'x': time, 'y': cum_rets} \
+                        'data': [{'x': time.strftime('%Y-%m'), 'y': f'{cum_rets: .2f}'} \
                             for time, cum_rets \
                                 in zip(method_dict[name].drawdown().index, method_dict[name].drawdown().values)]
                         } for name in names],
@@ -119,7 +120,7 @@ class PortfolioAPIView(APIView):
 
             'rolling_sharp_ratio': {
                 'data': [{'name': name,
-                        'data': [{'x': time, 'y': cum_rets} \
+                        'data': [{'x': time.strftime('%Y-%m'), 'y': f'{cum_rets: .2f}'} \
                             for time, cum_rets \
                                 in zip(method_dict[name].sharp_ratio(rolling=True, lookback=1).dropna().index,
                                         method_dict[name].sharp_ratio(rolling=True, lookback=1).dropna().values)

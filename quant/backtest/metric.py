@@ -17,7 +17,7 @@ from scaling import convert_freq, annualize_scaler
 
 class Metric:
     def __init__(self, portfolio: Union[pd.DataFrame, pd.Series],
-                 freq: str='day'):
+                 freq: str='month'):
         """Metric class
 
         Args:
@@ -481,17 +481,17 @@ class Metric:
         sns.lineplot(data=report, x='Date', y='ddur', ax=ax[0][1])
         ax[0][1].set_title('Drawdown Duration')
         sns.lineplot(data=report, x='Date', y='sharp', ax=ax[1][0])
-        ax[1][0].set_title('1-year Sharp Ratio')
+        ax[1][0].set_title(f'{lookback}-year Sharp Ratio')
         sns.lineplot(data=report, x='Date', y='calmar', ax=ax[1][1])
-        ax[1][1].set_title('1-year Calmar Ratio')
+        ax[1][1].set_title(f'{lookback}-year Calmar Ratio')
         sns.lineplot(data=report, x='Date', y='VaR_ratio', ax=ax[2][0])
-        ax[2][0].set_title('1-year VaR Ratio')
+        ax[2][0].set_title(f'{lookback}-year VaR Ratio')
         sns.lineplot(data=report, x='Date', y='CVaR_ratio', ax=ax[2][1])
-        ax[2][1].set_title('1-year CVaR Ratio')
+        ax[2][1].set_title(f'{lookback}-year CVaR Ratio')
         sns.lineplot(data=report, x='Date', y='hit', ax=ax[3][0])
-        ax[3][0].set_title('1-year hit Ratio')
+        ax[3][0].set_title(f'{lookback}-year hit Ratio')
         sns.lineplot(data=report, x='Date', y='GtP', ax=ax[3][1])
-        ax[3][1].set_title('1-year GtP Ratio')
+        ax[3][1].set_title(f'{lookback}-year GtP Ratio')
         plt.show()
 
 import yfinance as yf
