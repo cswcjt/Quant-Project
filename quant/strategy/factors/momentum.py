@@ -34,8 +34,9 @@ class MomentumFactor:
         
         self.lookback_window = lookback_window
         self.rebal_dates_list = rebal_dates(price_df, 
-                                            period=freq)
-
+                                            period=freq,
+                                            include_first_date=True)
+        
         self.rets = price_df.loc[self.rebal_dates_list, :].pct_change(self.lookback_window).dropna()
         self.n_sel = n_sel
         self.long_only = long_only
