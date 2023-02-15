@@ -76,25 +76,7 @@ class MarketAPIView(APIView):
 
 class PortfolioAPIView(APIView):
     def get_data(self, request):
-        path = PJT_PATH / 'quant'
         param = request_transform(request)
-        factors = param['factor']
-    
-        if 'factor' in param:
-            del param['factor']
-        
-        all_assets_df = pd.read_csv(path / 'alter_with_equity.csv', index_col=0)
-        all_assets_df.index = pd.to_datetime(all_assets_df.index)
-        all_assets_df = all_assets_df.loc['2011':,].dropna(axis=1)
-        
-        bs_df = pd.read_csv(path / 'business_cycle.csv', index_col=0)
-        bs_df.index = pd.to_datetime(bs_df.index)
-
-        test = FactorBacktest(
-            all_assets=all_assets_df, 
-            business_cycle=bs_df,
-            **param)
-        
         names = ['Portfolilo', 'S&P500']
         
         sp500 = yf.download('SPY', start=param['start_date'], end=param['end_date'], progress=False)
