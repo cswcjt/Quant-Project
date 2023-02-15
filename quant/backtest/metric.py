@@ -419,8 +419,8 @@ class Metric:
     def numeric_metric(self, returns: pd.Series=None,
                        delta: float=0.01, dict: bool=True) -> Union[dict, pd.Series]:
         result = {
-            'returns': f'{self.total_returns(returns):.2f}',
-            'CAGR': f'{self.CAGR(returns):.2f}',
+            'returns': f'{100 * self.total_returns(returns):.2f}',
+            'CAGR': f'{100 * self.CAGR(returns):.2f}',
             'volatility': f'{self.annualized_volatility(returns):.2f}',
             'skewness': f'{self.skewness(returns):.2f}',
             'kurtosis': f'{self.kurtosis(returns):.2f}',

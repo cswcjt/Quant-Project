@@ -85,20 +85,40 @@ class Chart {
         .then(function (response) {
             const data = response.data;
 
+            console.log(data);
+
             Object.keys(data).forEach(key => {
-                if (method == 'get') {
-                    self.chartObject[key] = self.drawChart(
-                        key, 
-                        data[key]['data'], 
-                        data[key]['type'],
-                        data[key]['colors'],
-                        data[key]['height']
-                    );
+                if (key !== 'metric') {
+                    if (method == 'get') {
+                        self.chartObject[key] = self.drawChart(
+                            key, 
+                            data[key]['data'], 
+                            data[key]['type'],
+                            data[key]['colors'],
+                            data[key]['height']
+                        );
+                    } else {
+                        self.updateChart(
+                            self.chartObject[key],
+                            data[key]['data'], 
+                        );
+                    }
                 } else {
-                    self.updateChart(
-                        self.chartObject[key],
-                        data[key]['data'], 
-                    );
+                    // TODO: method로 분리 필요 및 어떤 Universe인지 확인할 구분값 넘겨 받아서 if 문처리 필요
+                    Object.keys(data['metric']).forEach(key => {
+                        if (key !== 'returns' && key !== 'CAGR') {
+                            document.querySelectorAll(`#${key} .metric-value`).forEach((ele, idx) => {
+                                ele.innerText = data['metric'][key][idx]['data'];
+                                ele.style.color = data['metric'][key][idx]['color'];
+                            });
+                        } else {
+                            data['metric'][key].forEach(e => {
+                                const ele = document.getElementById(`${e['name']}-${key}`);
+                                ele.innerText = `${e['data']}%`;
+                                ele.style.color = e['color'];
+                            })
+                        }
+                    });
                 }
             })
         }).catch(function (err) {
@@ -106,8 +126,6 @@ class Chart {
         }).finally(function () {
             self.progressLoading(false);
         });
-        
-       
     }
 
     requestGet(url) {
