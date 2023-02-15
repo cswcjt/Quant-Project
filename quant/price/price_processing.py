@@ -155,7 +155,7 @@ def calculate_portvals(price_df: pd.DataFrame, weight_df: pd.DataFrame, signal_d
         for end_day in weight_df.index[1:]:
             sub_price_df = price_df.loc[prev_end_day:end_day]
             sub_asset_flow_df = sub_price_df / sub_price_df.iloc[0]
-
+            
             weight_series = weight_df.loc[prev_end_day]
             indi_port_cum_rtn_series = (sub_asset_flow_df * weight_series) * cum_rtn_up_until_now
         

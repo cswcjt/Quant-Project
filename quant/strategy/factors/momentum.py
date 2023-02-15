@@ -66,7 +66,7 @@ class MomentumFactor:
         else:
             signal = long_signal + short_signal
         
-        return signal.iloc[self.lookback_window:,]#.dropna(inplace=True)
+        return signal#.dropna(inplace=True)
     
     # 상대 모멘텀 시그널 계산 함수
     def relative_momentum(self) -> pd.DataFrame:
@@ -100,7 +100,7 @@ class MomentumFactor:
         else:
             signal = long_signal + short_signal
 
-        return signal.iloc[self.lookback_window:,]#.dropna(inplace=True)
+        return signal.iloc#.dropna(inplace=True)
     
     # 듀얼 모멘텀 시그널 계산 함수
     def dual_momentum(self) -> pd.DataFrame:
