@@ -1,12 +1,16 @@
 import pickle
 import sys
+import pandas as pd
 
 from pathlib import Path
 
 PJT_PATH = Path(__file__).parents[2]
 sys.path.append(str(PJT_PATH))
 
-from scaling import convert_freq, annualize_scaler
+from scaling import convert_freq
+from quant.price.price_processing import rebal_dates
+from quant.backtest.factor_backtest import FactorBacktest
+
 
 def set_checkboxs_info():
     return [
@@ -102,8 +106,43 @@ def request_transform(request: dict):
     return res
 
 
+def get_factor_returns(param: dict):
+    path = PJT_PATH / 'quant'
+    factors = param['factor']
+
+    if 'factor' in param:
+        del param['factor']
+    
+    all_assets_df = pd.read_csv(path / 'alter_with_equity.csv', index_col=0)
+    all_assets_df.index = pd.to_datetime(all_assets_df.index)
+    all_assets_df = all_assets_df.loc['2011':,].dropna(axis=1)
+    
+    bs_df = pd.read_csv(path / 'business_cycle.csv', index_col=0)
+    bs_df.index = pd.to_datetime(bs_df.index)
+
+    test = FactorBacktest(all_assets=all_assets_df,
+                          business_cycle=bs_df,
+                          **param)
+    
+    rets = test.factor_rets(factors=factors).dropna()
+    cum_rets = (1 + rets).cumprod()
+    return cum_rets
+
+## backtest 결과를 받아서 chart에 필요한 컬러로 변환
 def color_pick(returns):
     if returns > 0:
         return '#ea5050'
     else:
         return '#5050ea'
+    
+if __name__ == '__main__':
+    param = {
+        "start_date" : '2011-01-03',
+        "end_date" : '2022-12-30',
+        "factor" : ['beta', 'mom', 'vol', 'prophet'],
+        "cs_model" : 'ew',
+        "risk_tolerance" : 'aggressive',
+        "rebal_freq" : 'month',
+    }
+    rets = get_factor_returns(param)
+    print(rets)
