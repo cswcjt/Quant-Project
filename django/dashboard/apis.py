@@ -82,7 +82,7 @@ class PortfolioAPIView(APIView):
         names = ['Portfolilo', 'S&P500']
         
         # get s&p500 data
-        sp500 = yf.download('SPY', start=param['start_date'], end=param['end_date'], progress=False)
+        sp500 = yf.download('SPY', start=param['start_date'], end=param['end_date'], progress=False)['Adj Close']
         sp500 = daily_to_period(sp500, param['rebal_freq'], include_first_date=False)
         
         # get portfolio data for request
@@ -140,21 +140,6 @@ class PortfolioAPIView(APIView):
             'metric': {},
         }
         
-        # metric key list
-        key_dict = {
-            'returns': 'Total Returns',
-            'CAGR': 'CAGR',
-            'MDD': 'MDD',
-            'MDD_duration': 'Underwater Period',
-            'volatility': 'Anuallized Volatility',
-            'sharp': 'Sharpe Ratio',
-            'sortino': 'Sortino Ratio',
-            'calmar': 'Calmar Ratio',
-            'CVaR_ratio': 'CVaR Ratio',
-            'hit': 'Hit Ratio',
-            'GtP': 'Gain-to-Pain'
-        }
-        
         key_list = ['returns', 'CAGR', 'MDD', 'MDD_duration',
                     'volatility', 'sharp', 'sortino', 'calmar',
                     'CVaR_ratio', 'hit', 'GtP']
@@ -167,36 +152,10 @@ class PortfolioAPIView(APIView):
 
         return data
 
-        # names = ['Portfolilo', 'S&P500']
-        # return {
-        #     'cumulative': {
-        #         'data': [{'name': name, 'data': random.sample(list(range(0, 101)), 11)} for name in names],
-        #         'type': 'area',
-        #         'height': 350,
-        #         'colors': ['#FF6384', '#00B1E4']
-        #     },
-
-        #     'mdd': {
-        #         'data': [{'name': name, 'data': random.sample(list(range(0, 51)), 10)} for name in names],
-        #         'type': 'area',
-        #         'height': 190,
-        #         'colors': ['#a9a0fc', '#e2e2e2']
-        #     },
-
-        #     'rolling_sharp_ratio': {
-        #         'data': [{'name': name, 'data': random.sample(list(range(0, 51)), 10)} for name in names],
-        #         'type': 'area',
-        #         'height': 190,
-        #         'colors': ['#a9a0fc', '#e2e2e2']
-        #     },
-        # }
-
     def get(self, request, *args, **kwargs):
         data = self.get_data(request)
-        print(data)
         return Response(data=data, status=status.HTTP_200_OK)
 
     def post(self, request, *args, **kwargs):
-        print(request.data)
         data = self.get_data(request)
         return Response(data=data, status=status.HTTP_200_OK)

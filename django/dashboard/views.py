@@ -26,8 +26,8 @@ def portfolio(request):
     }
 
     metric_second = {
-        'mdd': 'MDD',
-        'mdd_duration': 'Underwater Period',
+        'MDD': 'MDD',
+        'MDD_duration': 'Underwater Period',
         'volatility': 'Anuallized Volatility',
     } 
 
@@ -38,9 +38,9 @@ def portfolio(request):
     }
 
     metric_last = {
-        'cvar_ratio': 'CVaR Ratio',
+        'CVaR_ratio': 'CVaR Ratio',
         'hit': 'Hit Ratio',
-        'gtp': 'Gain-to-Pain'
+        'GtP': 'Gain-to-Pain'
     }
     
     return render(request, 'dashboard/container/portfolio.html', {
