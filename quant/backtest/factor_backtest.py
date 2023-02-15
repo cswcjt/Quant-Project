@@ -82,8 +82,18 @@ class FactorBacktest:
         self.all_assets = all_assets
         self.bs_df = business_cycle
         
+        
         # 데이터 슬라이싱
         self.all_assets_df = self.all_assets.loc[self.start_date:self.end_date, :]
+        
+        # 리밸런싱 날짜 정보
+        self.rebal_dates_list = rebal_dates(self.all_assets_df, self.rebal_freq)
+        
+        self.start_date = self.rebal_dates_list[0].strftime('%Y-%m-%d')
+        self.end_date = self.rebal_dates_list[-1].strftime('%Y-%m-%d')
+        
+        self.all_assets_df = self.all_assets.loc[self.start_date:self.end_date, :]
+        
         # 시황 데이터
         self.business_cycle = self.business_cycle.loc[self.start_date:self.end_date,]
         
@@ -91,13 +101,10 @@ class FactorBacktest:
         self.benchmark_name = benchmark_name 
         self.alter_asset_list = alter_asset_list
         
-        # 리밸런싱 날짜 정보
-        self.rebal_dates_list = rebal_dates(self.all_assets_df, self.rebal_freq,
-                                            include_first_date=True)
         # 리밸런싱 날의 가격 정보
         self.price_on_rebal_df = price_on_rebal(self.all_assets_df, self.rebal_dates_list)
         
-    def run(self, factor: str='mom'):
+    def run(self, factor: str):
         # 팩터 선택
         self.factor = factor
         self.daily_price_df = self.all_assets_df.drop(columns=self.alter_asset_list)
@@ -124,7 +131,9 @@ class FactorBacktest:
         self.ts_weight, self.ts_cs_weight = self.time_weight()
         
         # 최적화(ts)가 끝난 포트폴리오의 수익률 계산 결과
+        print('cumulative')
         self.ts_port_cum_rets = self.port_return('ts_weight', cumulative=True)
+        print('Not cumulative')
         self.ts_port_daily_rets = self.port_return('ts_weight', cumulative=False)
         
         self.business_cycle = self.business_cycle.loc[self.start_date:self.end_date,]
@@ -144,23 +153,19 @@ class FactorBacktest:
                         }
         
         class_instance = factor_dict[factor]
-        price_df = self.daily_price_df
-        
         if self.factor == 'beta':
-            factor_signal = class_instance(equity_with_benchmark=price_df,
+            #no problem
+            factor_signal = class_instance(equity_with_benchmark=self.daily_price_df,
                                            benchmark_ticker=self.benchmark_name
                                            ).signal()
-            
             return factor_signal
         
         elif self.factor == 'mom':
-            factor_signal = class_instance(price_df).signal()
-            
+            factor_signal = class_instance(self.daily_price_df).signal()
             return factor_signal
 
         elif self.factor == 'vol':
-            factor_signal = class_instance(price_df).signal()
-            
+            factor_signal = class_instance(self.daily_price_df).signal()
             return factor_signal 
         
         elif self.factor == 'prophet':
@@ -168,7 +173,7 @@ class FactorBacktest:
                                         index_col=0,
                                         parse_dates=True)
             
-            return factor_signal
+            return factor_signal.loc[self.start_date:self.end_date, :]
         
     def cross_weight(self) -> pd.DataFrame:
         """월별 포트폴리오의 횡적 가중치 계산 함수

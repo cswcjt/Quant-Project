@@ -11,6 +11,18 @@ from scaling import convert_freq
 from quant.price.price_processing import rebal_dates
 from quant.backtest.factor_backtest import FactorBacktest
 
+def daily_to_period(df, period: str, include_first_date: bool=True):
+    rebal_rates = rebal_dates(df, period=period,
+                              include_first_date=include_first_date)
+    
+    if isinstance(df, pd.DataFrame):
+        rets = df.loc[rebal_rates, :]
+    elif isinstance(df, pd.Series):
+        rets = df.loc[rebal_rates]
+    else: 
+        raise TypeError('Invalid Type')
+    
+    return rets
 
 def set_checkboxs_info():
     return [
@@ -115,7 +127,7 @@ def get_factor_returns(param):
     
     all_assets_df = pd.read_csv(path / 'alter_with_equity.csv', index_col=0)
     all_assets_df.index = pd.to_datetime(all_assets_df.index)
-    all_assets_df = all_assets_df.loc['2011':,].dropna(axis=1)
+    all_assets_df = all_assets_df.loc[param['start_date']:,].dropna(axis=1)
     
     bs_df = pd.read_csv(path / 'business_cycle.csv', index_col=0)
     bs_df.index = pd.to_datetime(bs_df.index)
@@ -124,20 +136,13 @@ def get_factor_returns(param):
                           business_cycle=bs_df,
                           **param)
     
-    rets = test.factor_rets(factors=factors).dropna()
+    rets = test.factor_rets(factors=factors) #.dropna()
     cum_rets = (1 + rets).cumprod()
+    print(cum_rets)
+    print(cum_rets[cum_rets.isnull().any(axis=1)])
     
-    rebal_date = rebal_dates(cum_rets, period=param['rebal_freq'],
-                             include_first_date=True)
-    
-    if isinstance(cum_rets, pd.DataFrame):
-        cum_rets = cum_rets.loc[rebal_date, :]
-    elif isinstance(cum_rets, pd.Series):
-        cum_rets = cum_rets.loc[rebal_date]
-    else: 
-        raise TypeError('Invalid Type')
-    
-    return cum_rets
+    cum_rets = daily_to_period(cum_rets, period=param['rebal_freq'])
+    return cum_rets.fillna(1).iloc[1:, :]
 
 ## backtest 결과를 받아서 chart에 필요한 컬러로 변환
 def color_pick(returns):
@@ -145,10 +150,12 @@ def color_pick(returns):
         return '#ea5050'
     else:
         return '#5050ea'
-    
+
+import yfinance as yf
+
 if __name__ == '__main__':
     param = {
-        "start_date" : '2011-01-03',
+        "start_date" : '2013-01-03',
         "end_date" : '2022-12-30',
         "factor" : ['beta', 'mom', 'vol', 'prophet'],
         "cs_model" : 'ew',
@@ -157,3 +164,6 @@ if __name__ == '__main__':
     }
     rets = get_factor_returns(param)
     print(rets)
+    sp500 = yf.download('SPY', start=param['start_date'], end=param['end_date'], progress=False)
+    sp500 = daily_to_period(sp500, param['rebal_freq'])
+    print(sp500)
