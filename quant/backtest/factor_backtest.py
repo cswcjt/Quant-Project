@@ -3,6 +3,7 @@ import pandas as pd
 import yfinance as yf
 
 ## Project Path 추가
+import pickle
 import sys
 from pathlib import Path
 
@@ -109,6 +110,7 @@ class FactorBacktest:
         self.factor = factor
         self.daily_price_df = self.all_assets_df.drop(columns=self.alter_asset_list)
         self.signal = self.factor_signal(self.factor)
+        # print(self.signal)
             
         # 최적화(cs) 선택 및 횡적 비중 계산
         cs_dict = {'ew': Equalizer,
@@ -131,9 +133,7 @@ class FactorBacktest:
         self.ts_weight, self.ts_cs_weight = self.time_weight()
         
         # 최적화(ts)가 끝난 포트폴리오의 수익률 계산 결과
-        print('cumulative')
         self.ts_port_cum_rets = self.port_return('ts_weight', cumulative=True)
-        print('Not cumulative')
         self.ts_port_daily_rets = self.port_return('ts_weight', cumulative=False)
         
         self.business_cycle = self.business_cycle.loc[self.start_date:self.end_date,]
@@ -158,23 +158,25 @@ class FactorBacktest:
             factor_signal = class_instance(equity_with_benchmark=self.daily_price_df,
                                            benchmark_ticker=self.benchmark_name
                                            ).signal()
-            return factor_signal
+            # print('beta:\n')
         
         elif self.factor == 'mom':
             factor_signal = class_instance(self.daily_price_df).signal()
-            return factor_signal
+            # print('momentum:\n')
 
         elif self.factor == 'vol':
             factor_signal = class_instance(self.daily_price_df).signal()
-            return factor_signal 
+            # print('volatility:\n')
         
         elif self.factor == 'prophet':
-            factor_signal = pd.read_csv(PJT_PATH / 'quant'/ 'strategy' / 'factors' / 'data' / 'prophet_signal.csv',
-                                        index_col=0,
-                                        parse_dates=True)
+            with open(PJT_PATH / 'django' / 'dashboard' / 'pickle' / 'prophet_signal.pickle', 'rb') as f:
+                factor_signal = pickle.load(f)
+                
+            # print('prophet:\n')
+            factor_signal = factor_signal.loc[self.start_date:self.end_date, :]
             
-            return factor_signal.loc[self.start_date:self.end_date, :]
-        
+        return factor_signal
+    
     def cross_weight(self) -> pd.DataFrame:
         """월별 포트폴리오의 횡적 가중치 계산 함수
         

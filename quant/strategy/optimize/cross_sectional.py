@@ -52,8 +52,8 @@ class Equalizer:
         # 유동적인 리밸런싱 주기를 위한 인덱스
         self.select_period = select_period
         self.price_df.index.name = 'date_time'
-        self.rebal_date_list = rebal_dates(self.signal, self.select_period)
-        self.signal_on_rebal = self.signal.loc[self.rebal_date_list, :]
+        self.rebal_date_list = rebal_dates(self.price_df, self.select_period)
+        self.signal_on_rebal = self.signal.loc[self.rebal_date_list[annualize_scaler(self.select_period):], :]
 
         # variable_setting()의 결과물
         self.er_df = self.variable_setting()[0]
@@ -68,7 +68,7 @@ class Equalizer:
         er_list = []
         std_list = []
         cov_list = []
-        for index in self.rebal_date_list:
+        for index in self.rebal_date_list[annualize_scaler(self.select_period):]:
 
             rets = self.daily_rets_df.loc[:index, :]
             rets = rets.iloc[-252:, :] if len(rets) >= 252 else rets
@@ -184,7 +184,7 @@ class Optimization(Equalizer):
         add_total_signal = self.signal.copy()
         add_total_signal['total_signal'] = add_total_signal.sum(axis=1)
         self.add_total_signal = add_total_signal
-        self.signal_on_rebal = self.add_total_signal.loc[self.rebal_date_list]
+        self.signal_on_rebal = self.add_total_signal.loc[self.rebal_date_list[annualize_scaler(self.select_period):]]
         
     # opt_processing
     def opt_processing(self, target_assets: list, present_date: pd.DatetimeIndex) -> pd.DataFrame: 
