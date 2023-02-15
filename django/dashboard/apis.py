@@ -7,9 +7,9 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from dashboard.services import (
-    PJT_PATH, 
-    date_transform, 
-    color_pick, 
+    PJT_PATH,
+    get_factor_returns, 
+    color_pick,
     request_transform
 )
 
@@ -26,7 +26,7 @@ class FactorAPIView(APIView):
 
 
 class MarketAPIView(APIView):
-    def get_data(self):
+    def get_data(self, request):
         return {
             'regime_clustering': {
                 'data': [{'name': name, 'data': [[random.randint(1, 11), random.randint(1, 11)] for j in range(1, 21)]} for name in ['setosa', 'versicolor', 'virginica']],
@@ -63,14 +63,14 @@ class MarketAPIView(APIView):
                 'colors': ['#008FFB']
             },
         }
-
     def get(self, request, *args, **kwargs):
-        data = self.get_data()
-        return Response(data, status=status.HTTP_200_OK)
+        data = self.get_data(request)
+        print(data)
+        return Response(data=data, status=status.HTTP_200_OK)
 
     def post(self, request, *args, **kwargs):
         print(request.data)
-        data = self.get_data()
+        data = self.get_data(request)
         return Response(data=data, status=status.HTTP_200_OK)
 
 
@@ -99,7 +99,7 @@ class PortfolioAPIView(APIView):
         
         sp500 = yf.download('SPY', start=param['start_date'], end=param['end_date'], progress=False)
         sp500_report = Metric(portfolio=sp500, freq=param['rebal_freq'])
-        portfolio = test.factor_rets(factors=factors)
+        portfolio = get_factor_returns(param)
         portfolio_report = Metric(portfolio=portfolio, freq=param['rebal_freq'])
         
         method_dict = {
