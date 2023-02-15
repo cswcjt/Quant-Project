@@ -1,11 +1,14 @@
 # 패키지 임포트
+import sys
 import numpy as np
 import pandas as pd
 import yfinance as yf
-from pandas.tseries.offsets import *
 
-import sys
-sys.path.append('/Users/jtchoi/Library/CloudStorage/GoogleDrive-jungtaek0227@gmail.com/My Drive/quant/Quant-Project')
+from pandas.tseries.offsets import *
+from pathlib import Path
+
+PJT_PATH = Path(__file__).parents[3]
+sys.path.append(str(PJT_PATH))
 
 from scaling import convert_freq, annualize_scaler
 from quant.price.price_processing import rebal_dates
@@ -18,20 +21,21 @@ class Equalizer:
     횡적 배분 모델들 중 동일비중 방법론에 기반한 모델들
     
     사용 예시:
-    test_ew_weight = Equalizer(signal=test_rel_signal, rebal_price=test_rebal_price_df, param=12)
-    ew_weight = test_ew_weight.ew()
+
     """
     
     def __init__(self, signal: pd.DataFrame, 
                 price_df: pd.DataFrame, 
                 select_period: str, 
+                call_method: str
                 ) -> pd.DataFrame:
         """__init__
         
         Args:
             signal (pd.DataFrame): 팩터를 적용한 결과로 각 자산에 대한 투자 여부를 알려주는 df
             price_df (pd.DataFrame): 종가 정보를 갖고 있는 df
-            select_period (int): 연율화를 위한 상수값 설정
+            select_period (int): 리밸런싱 주기 정보
+            call_method (str): 최적화 방법론 선택
 
         Returns:
             pd.DataFrame: 각 자산의 투자비중을 알려주는 df
@@ -56,20 +60,22 @@ class Equalizer:
         self.vol_df = self.variable_setting()[1]
         self.cov_df = self.variable_setting()[2]
         
+        # call_method
+        self.call_method = call_method
+        
     def variable_setting(self):
         
         er_list = []
         std_list = []
         cov_list = []
         for index in self.rebal_date_list:
-            #print(index)
+
             rets = self.daily_rets_df.loc[:index, :]
             rets = rets.iloc[-252:, :] if len(rets) >= 252 else rets
 
-            #print(f'{index}의 수익률 평균: {rets.mean() * 252}')
             er = rets.mean() * 252
             er_list.append(er)
-            #print(f'{index}의 변동성: {rets.std() * np.sqrt(252)}')
+
             std = rets.std() * np.sqrt(252)
             std_list.append(std)
 
@@ -136,6 +142,17 @@ class Equalizer:
         weights = self.eps(weights)
 
         return weights
+    
+    def weight(self):
+        
+        if self.call_method == 'beta':
+            return self.beta()
+        
+        elif self.call_method == 'ew':
+            return self.ew()
+        
+        elif self.call_method == 'emv':
+            return self.emv()
 
 class Optimization(Equalizer):
     """
@@ -145,16 +162,16 @@ class Optimization(Equalizer):
     
     사용 예시: 
     msr = Optimization(signal=test_rel_signal, rebal_price=test_rebal_price_df, param=12, call_method='msr')
-    msr.weight = msr.run()
+    msr.weight = msr.weight()
     
-    동작 순서: run() -> target_assets() -> opt_processing() -> minimize()
+    동작 순서: weight() -> target_assets() -> opt_processing() -> minimize()
     """
     
     def __init__(self, signal: pd.DataFrame, 
                 price_df: pd.DataFrame, 
                 select_period: str, 
                 call_method: str):
-        super().__init__(signal, price_df, select_period)
+        super().__init__(signal, price_df, select_period, call_method)
         """__init__
         call_method: 사용할 모델의 이름
         나머지는 Equalizer와 동일
@@ -284,7 +301,7 @@ class Optimization(Equalizer):
             result = self.opt_processing(target_assets, present_date) 
             return pd.Series(result, index = target_assets)
 
-    def run(self) -> pd.DataFrame:
+    def weight(self) -> pd.DataFrame:
         """run: apply함수에 target_assets 함수를 적용하는 파트
 
         Returns:
@@ -305,9 +322,10 @@ if __name__ == '__main__':
     equity_df = pd.read_csv(path + '/equity_universe.csv', index_col=0)
     equity_df.index = pd.to_datetime(equity_df.index)
     equity_universe = equity_df.loc['2011':,].dropna(axis=1)
+    print(equity_universe)
     signal = pd.read_csv(path + '/result/mom_signal.csv', index_col=0)
-    
-    #ew_weight = Equalizer2(signal=signal, price_df=equity_universe, select_period='quarter').ew()
-    test = Optimization(signal, equity_universe, 'quarter', call_method='msr').run()
-    #print(test)
+    print(signal)
+    ew_weight = Equalizer(signal=signal, price_df=equity_universe, select_period='quarter', call_method='ew').weight()
+    #test = Optimization(signal, equity_universe, 'quarter', call_method='msr').weight()
+    print(ew_weight)
     

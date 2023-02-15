@@ -6,8 +6,6 @@ import time
 import numpy as np
 import pandas as pd
 
-from dask.distributed import Client
-from numba import njit, vectorize
 from prophet import Prophet
 from prophet.diagnostics import cross_validation
 from prophet.diagnostics import performance_metrics
@@ -24,10 +22,11 @@ sys.path.append(str(PJT_PATH))
 
 from scaling import convert_freq, annualize_scaler
 from quant.price.price_processing import rebal_dates, get_price
+from typing import Union
 
 class ProphetFactor:
     def __init__(self, price: pd.DataFrame,
-                 freq: str, lookback: int=1,
+                 freq: str, lookback: Union[int, float]=1,
                  long_only: bool=True):
         """초기화 함수
 
@@ -50,10 +49,10 @@ class ProphetFactor:
         if not isinstance(self.price.index[0], pd.Timestamp):
             self.price.index = pd.to_datetime(self.price.index)
         
-        self.rebal_dates = rebal_dates(self.price, self.freq)
+        self.rebal_dates = rebal_dates(self.price, self.freq, include_first_date=True)
         self.rebal_price = self.price.loc[self.rebal_dates, :]
         
-        self.lookback = lookback
+        self.lookback = int(360 * lookback)
         self.long_only = long_only
         self.model = None
     
@@ -76,31 +75,31 @@ class ProphetFactor:
         if not isinstance(df.index[0], pd.Timestamp):
             df.index = pd.to_datetime(df.index)
            
-        df = df.asfreq('D').interpolate(method='linear')
+        df = df.asfreq('D').interpolate(method='spline', order=2)
+        df = df.dropna()
         df = df.loc[:date]
         
-        lookback = 365 * self.lookback
-        if (lookback > 0) and (len(df) >= lookback):
-            df = df.iloc[-lookback:, :]
+        if (self.lookback > 0) and (len(df) >= self.lookback):
+            df = df.iloc[-self.lookback:]
         
         df = df.reset_index(drop=False)
         df.columns = ['ds', 'y']
         return df
     
     def find_best_params(self, df: pd.DataFrame, metric: str) -> dict:
-        if len(df) < 180:
+        if len(df) < int(self.lookback / 2):
             return {'changepoint_prior_scale': 0.05,
                     'seasonality_prior_scale': 10,
-                    'seasonality_mode': 'additive'}
-        elif len(df) < 365:
-            intial_days = '90 days'
+                    'seasonality_mode': 'multiplicative'}
+        elif len(df) < self.lookback:
+            intial_days = f'{int(self.lookback / 4)} days'
         else:
-            intial_days = '180 days'
+            intial_days = f'{int(self.lookback / 2)} days'
         
         param_grid = {
-            'changepoint_prior_scale': [0.001, 0.01, 0.1, 0.5],
-            'seasonality_prior_scale': [0.01, 0.1, 1.0, 10.0],
-            'seasonality_mode': ['additive', 'multiplicative']
+            'changepoint_prior_scale': [0.001, 0.01, 0.1, 0.5], #4
+            'seasonality_prior_scale': [0.01, 0.1, 1.0, 10.0],  #4
+            'seasonality_mode': ['additive', 'multiplicative'] #2
         }
         
         # Generate all combinations of parameters
@@ -182,7 +181,7 @@ class ProphetFactor:
         return params
 
     def calc_returns(self) -> pd.DataFrame:
-        # Prophet 모델을 통해 예측한 파라미터를 불러옴
+        # Prophet 모델을 통해 다음달 가격 예측
         try:
             params_exist = True
             best_params = self.load_params()
@@ -196,7 +195,7 @@ class ProphetFactor:
             
         returns = {}        
         # 각 날짜별, 자산별로 예측 수익률 계산
-        for date in self.rebal_dates:
+        for date in self.rebal_dates[1:]:
             strdate = date.strftime('%Y-%m-%d')
             returns.update({strdate: {}})
             for asset in self.price.columns:
@@ -215,25 +214,31 @@ class ProphetFactor:
 
         return pd.DataFrame(returns)
     
-    def save_returns(self):
+    def save_returns(self, num: int):
         """ 시계열 예측팩터 수익률 테이블 저장 함수 """
         retruns = self.calc_returns()
         
-        save_path = PJT_PATH / 'quant' / 'strategy' / 'factors' / 'returns'
-        fname = 'prophet_returns.json'
+        save_path = PJT_PATH / 'quant' / 'strategy' / 'factors' / 'data'
+        fname = f'prophet_returns_{num}.json'
         
         retruns.to_json(save_path / 'prophet_returns.json')
         
-    def load_returns(self):
+    def load_returns(self, num: int):
         """ 시계열 예측팩터 수익률 테이블 불러오기 함수 """
-        load_path = PJT_PATH / 'quant' / 'strategy' / 'factors' / 'returns'
-        fname = 'prophet_returns.json'
-        
-        return pd.read_json(load_path / fname)
+        load_path = PJT_PATH / 'quant' / 'strategy' / 'factors' / 'data'
+        fname = f'prophet_returns_{num}.json'
+        rets = pd.read_json(load_path / fname).T
+        rets.index = pd.to_datetime(rets.index)
+        return rets
     
-    def calc_signal(self, returns: pd.DataFrame, n_sel: int):
+    def calc_signal(self, returns: pd.DataFrame=None, n_sel: int=20):
         """ 시그널 계산 함수 """
-        rets = returns
+        if returns is None:
+            rets = self.load_returns()
+        elif not isinstance(returns, pd.DataFrame):
+            raise TypeError('returns must be pd.DataFrame')
+        else:
+            rets = returns
         
         if self.long_only:
             # 수익률 순위화
@@ -264,7 +269,29 @@ class ProphetFactor:
 import yfinance as yf
 
 if __name__ == '__main__':
+    load_path = PJT_PATH / 'quant' / 'strategy' / 'factors' / 'returns'
+    
     df = pd.read_csv(PJT_PATH / 'asset_universe.csv', index_col=0)
+    df.index = pd.to_datetime(df.index)
+    
     prophet = ProphetFactor(df, freq='month',
-                            lookback=1, long_only=True)
-    prophet.save_returns()
+                            lookback=0.5, long_only=True)
+    
+    prophet.save_returns(num=2)
+    
+    # rets = prophet.rebal_price.pct_change().dropna()
+    # # print(rets)
+    
+    # predicted_rets = prophet.load_returns()
+    # signal = prophet.calc_signal(predicted_rets, n_sel=20)
+    # print(signal.sum(axis=1))
+    
+    # num_assets = len(rets.columns)
+    # final_rets = (1 + (signal * rets)).cumprod()
+    # print(final_rets)
+    
+    # final_rets = final_rets.sum(axis=1) / num_assets
+    # print(final_rets)
+
+    # # print(signal)
+    # # signal.to_json('./data/prophet_signal.json')

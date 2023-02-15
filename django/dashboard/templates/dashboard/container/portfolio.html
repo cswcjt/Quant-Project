@@ -67,7 +67,7 @@
 
                                 <div class="d-flex pb-1">
                                     <div class="col-4 chart-title border-0">
-                                        Total Return
+                                        CAGR
                                     </div>
                                     <div class="col-4 text-primary text-center">
                                         -23.1%
@@ -105,7 +105,7 @@
                                 <div class="col-4 px-1">
                                     <div class="chart-h-small shadow-sm bg-white border">
                                         <p class="chart-title">
-                                            Max Underwater
+                                            Underwater Period
                                         </p>
                                         
                                         <div class="d-flex flex-column">
@@ -125,7 +125,7 @@
                                 <div class="col-4 px-1">
                                     <div class="chart-h-small shadow-sm bg-white border">
                                         <p class="chart-title">
-                                            Yearly Volatility
+                                            Annualized Volatility
                                         </p>
 
                                         <div class="d-flex flex-column">
@@ -147,7 +147,7 @@
                                 <div class="col-4 px-1">
                                     <div class="chart-h-small shadow-sm bg-white border">
                                         <p class="chart-title">
-                                            Sharp ratio
+                                            Sharpe ratio
                                         </p>
 
                                         <div class="d-flex flex-column">
@@ -280,22 +280,7 @@
 {% block script %}
     {{ block.super }}
     <script>
-        axios.get('{{ api_url }}')
-            .then(function (response) {
-                const data = response.data;
-
-                Object.keys(data).forEach(key => {
-                    chart.draw(
-                        key, 
-                        data[key]['data'], 
-                        data[key]['type'],
-                        data[key]['colors'],
-                        data[key]['height']
-                    );
-                })
-                
-            }).catch(function (err) {
-                console.error(err);
-            })
+        chart.requestGet('{{ api_url }}');
+        chart.requestPost('{{ api_url }}');
     </script>
 {% endblock %}

@@ -2,18 +2,21 @@
 import sys
 from pathlib import Path
 
-PJT_PATH = Path(__file__).parents[2]
+PJT_PATH = Path(__file__).parents[3]
 sys.path.append(str(PJT_PATH))
+from quant.price.price_processing import rebal_dates
+from scaling import annualize_scaler
 
 #from quant.backtest.metric import Metric
 import numpy as np
 import pandas as pd
 
-class Volatility:
+class VolatilityFactor:
 
-    def __init__(self, price_df: pd.DataFrame, 
-                n_sel: int=20,
-                lookback_window: int=12) -> pd.DataFrame:
+    def __init__(self, price_df: pd.DataFrame,
+                 freq: str='month',
+                 n_sel: int=20,
+                 lookback_window: int=1) -> pd.DataFrame:
         """_summary_
         
         Args:
@@ -34,8 +37,9 @@ class Volatility:
         self.last_date = self.price_df.iloc[-1].name
         
         # 한달마다의 마지막 날짜 & lookback window = 1년
-        monthly_index = self.price_df.resample('M').last().index
-        self.monthly_index = monthly_index[lookback_window:]
+        self.lookback_window = lookback_window * annualize_scaler(freq)
+        monthly_index = rebal_dates(self.price_df, period=freq)
+        self.monthly_index = monthly_index[(self.lookback_window - 1):]
         
         # 수익률 데이터프레임   
         self.rets = self.price_df.pct_change().dropna()
@@ -45,7 +49,6 @@ class Volatility:
         
     def volatility(self) -> pd.DataFrame:
         """_summary_
-
         Returns:
             pd.DataFrame: 변동성 시그널 df
         """
@@ -75,5 +78,20 @@ class Volatility:
             signal_list.append(df.resample('M').last().apply(assign_value, axis=1).iloc[-1])
             
         signal_df = pd.concat(signal_list, axis=1).T 
+        signal_df.index = self.monthly_index
         
         return signal_df
+    
+    def signal(self):
+        return self.volatility()
+    
+    
+if __name__ == '__main__':
+    path = '/Users/jtchoi/Library/CloudStorage/GoogleDrive-jungtaek0227@gmail.com/My Drive/quant/Quant-Project/quant'
+    equity_df = pd.read_csv(path + '/alter_with_equity.csv', index_col=0)
+    print(equity_df.tail())
+    equity_df.index = pd.to_datetime(equity_df.index)
+    equity_universe = equity_df.loc['2011':,].dropna(axis=1)
+    
+    signal = VolatilityFactor(equity_universe, 'quarter').signal()
+    print(signal.sum(axis=1))
