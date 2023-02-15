@@ -88,6 +88,7 @@ class PortfolioAPIView(APIView):
         
         # get portfolio data for request
         portfolio = load_pickle(param)
+        sp500 = sp500.loc[portfolio.index[0].strftime('%Y-%m'):]
         
         sp500_report = Metric(portfolio=sp500, freq=param['rebal_freq'])
         portfolio_report = Metric(portfolio=portfolio, freq=param['rebal_freq'])

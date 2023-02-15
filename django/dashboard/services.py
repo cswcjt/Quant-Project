@@ -81,6 +81,8 @@ def request_transform(request: dict):
                 factors.append('mom')
             elif factor == 'volatility':
                 factors.append('vol')
+            elif factor == 'ai_forecasting':
+                factors.append('prophet')
             else:
                 factors.append(factor)
     except:
@@ -166,15 +168,14 @@ def save_pickle():
     path = PJT_PATH / 'django' / 'dashboard' / 'pickle' / 'factor'
     
     for idx, param in enumerate(make_all_params()):
-        if len(os.listdir(path)) <= idx:
-            fname = f"factor_returns_{idx}.pickle"
-            rets = get_factor_returns(param)
-            
-            with open(path / fname, 'wb') as f:
-                pickle.dump(rets, f)
-                    
-            print(f"{idx + 1}번째 pickle 저장 완료")
-            print('#' * (idx + 1) + ' ' * (len(make_all_params()) - idx - 1) + f" ({idx + 1}/{len(make_all_params())})")
+        fname = f"factor_returns_{idx}.pickle"
+        rets = get_factor_returns(param)
+        
+        with open(path / fname, 'wb') as f:
+            pickle.dump(rets, f)
+                
+        print(f"{idx + 1}번째 pickle 저장 완료")
+        print('#' * (idx + 1) + ' ' * (len(make_all_params()) - idx - 1) + f" ({idx + 1}/{len(make_all_params())})")
 
 def check_param(param1, param2):
     if param1['factor'] == param2['factor'] and \
@@ -238,6 +239,6 @@ if __name__ == '__main__':
     # print(make_all_params())
     # sp500 = load_sp500(param)
     # print(sp500.loc[:'2020-02'])
-    # save_pickle()
-    portfolio = load_pickle(param)
-    print(portfolio)
+    save_pickle()
+    # portfolio = load_pickle(param)
+    # print(portfolio)
