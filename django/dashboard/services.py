@@ -93,14 +93,14 @@ def request_transform(request: dict):
     except Exception as e:
         risk = 'aggressive'
     
-    convert_weights = {
-        'equal_weight' : 'ew',
-        'equally_modified_variance' : 'emv',
-        'maximize_sharpe_ratio' : 'msr',
-        'global_minimum_variance' : 'gmw',
-        'most_diversified_portfolio' : 'mdp',
-        'risk_parity' : 'rp',
-    }
+    # convert_weights = {
+    #     'equal_weight' : 'ew',
+    #     'equally_modified_variance' : 'emv',
+    #     'maximize_sharpe_ratio' : 'msr',
+    #     'global_minimum_variance' : 'gmw',
+    #     'most_diversified_portfolio' : 'mdp',
+    #     'risk_parity' : 'rp',
+    # }
     
     try:
         if data['start_date'] == '' or data['end_date'] == '':
@@ -163,8 +163,7 @@ def make_all_params():
     param_grid = {
         "start_date": ['2011-01-03'],
         "end_date": ['2022-12-30'],
-        "factor": [['beta', 'mom', 'vol', 'prophet'],
-                   ['beta'], ['mom'], ['vol'], ['prophet']],
+        "factor": [['beta', 'mom', 'vol', 'prophet']],
         "cs_model": ['ew'], #, 'emv', 'msr', 'gmv', 'mdp', 'rp'
         "risk_tolerance": ['conservative', 'moderate', 'aggressive'],
         "rebal_freq": ['month'],
@@ -180,15 +179,15 @@ def save_pickle():
         print('After')
         print(rets)
         
-        # with open(path / fname, 'wb') as f:
-        #     pickle.dump(rets, f)
+        with open(path / fname, 'wb') as f:
+            pickle.dump(rets, f)
+            
         print(f"Risk_tolerance: {param['risk_tolerance']}")
         print(f"{idx + 1}번째 pickle 저장 완료")
         print('#' * (idx + 1) + ' ' * (len(make_all_params()) - idx - 1) + f" ({idx + 1}/{len(make_all_params())})")
 
 def check_param(param1, param2):
-    if param1['factor'] == param2['factor'] and \
-        param1['cs_model'] == param2['cs_model'] and \
+    if param1['cs_model'] == param2['cs_model'] and \
         param1['risk_tolerance'] == param2['risk_tolerance'] and \
         param1['rebal_freq'] == param2['rebal_freq']:
         return True
@@ -200,25 +199,14 @@ def load_pickle(param):
     start = '-'.join(param['start_date'].split('-')[:2])
     end = '-'.join(param['end_date'].split('-')[:2])
     for idx, p in enumerate(make_all_params()):
+        
         if check_param(p, param):
             fname = f"factor_returns_{idx}.pickle"
-            print(f"{idx + 1}번째 pickle 불러오기 완료")
-            print(p)
-            print(param)
+            
             with open(path / fname, 'rb') as f:
                 rets = pickle.load(f)
                 
-                if isinstance(rets, pd.Series):
-                    return rets.loc[start:end]
-                
-                elif isinstance(rets, pd.DataFrame):
-                    print('start', start)
-                    print(type(start))
-                    print('end', end)
-                    print(type(end))
-                    print(rets.index)
-                    
-                    return rets.loc[start:end, :]
+                return rets.loc[start:end, param['factor']]
             
     return get_factor_returns(param)
 
@@ -244,7 +232,7 @@ if __name__ == '__main__':
     param = {
         "start_date" : '2013-01-03',
         "end_date" : '2022-12-30',
-        "factor" : ['beta'],
+        "factor" : ['beta', 'vol'],
         "cs_model" : 'ew',
         "risk_tolerance" : 'aggressive',
         "rebal_freq" : 'month',
@@ -255,6 +243,7 @@ if __name__ == '__main__':
     # print(end - start)
     # print(make_all_params())
     # sp500 = load_sp500(param)
+    save_pickle()
     # print(sp500.loc[:'2020-02'])
     portfolio = load_pickle(param)
     print(portfolio)
