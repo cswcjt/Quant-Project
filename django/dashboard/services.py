@@ -88,9 +88,8 @@ def request_transform(request: dict):
     except:
         factors = ['beta', 'mom', 'vol', 'prophet']
         
-    
     convert_weights = {
-        'equal_weights' : 'ew',
+        'equal_weight' : 'ew',
         'equally_modified_variance' : 'emv',
         'maximize_sharpe_ratio' : 'msr',
         'global_minimum_variance' : 'gmw',
@@ -98,13 +97,20 @@ def request_transform(request: dict):
         'risk_parity' : 'rp',
     }
     
-    with open(PJT_PATH / 'django' / 'dashboard' / 'pickle' / f"rebal_dates_{freq}.pkl", 'rb') as f:
-        rebal_dates = pickle.load(f)
+    if data['start_date'] == '':
+        start = '2011-01-03'
+    else:
+        start = data['start_date']
+        
+    if data['end_date'] == '':
+        end = '2022-12-30'
+    else:
+        end = data['end_date']
         
     try:
         res = {
-            "start_date" : data['start_date'],
-            "end_date" : date_transform(data['end_date'], rebal_dates),
+            "start_date" : start,
+            "end_date" : end,
             "factor" : factors,
             "cs_model" : convert_weights[data['weights']],
             "risk_tolerance" : data['risk_tolerance'],
@@ -112,8 +118,8 @@ def request_transform(request: dict):
         }
     except:
         res = {
-            "start_date" : '2013-01-02',
-            "end_date" : '2022-12-30',
+            "start_date" : start,
+            "end_date" : end,
             "factor" : factors,
             "cs_model" : 'ew',
             "risk_tolerance" : 'aggressive',
@@ -141,8 +147,10 @@ def get_factor_returns(param):
     
     rets = test.factor_rets(factors=factors) #.dropna()
     cum_rets = (1 + rets).cumprod()
+    print('Before')
     print(cum_rets)
-    return cum_rets
+    cum_rets = daily_to_period(cum_rets, period=param['rebal_freq'])
+    return cum_rets.fillna(1).iloc[1:, :]
 
 ## backtest 결과를 받아서 chart에 필요한 컬러로 변환
 def color_pick(returns):
@@ -169,10 +177,11 @@ def save_pickle():
     for idx, param in enumerate(make_all_params()):
         fname = f"factor_returns_{idx}.pickle"
         rets = get_factor_returns(param)
+        print('After')
+        print(rets)
         
-        with open(path / fname, 'wb') as f:
-            pickle.dump(rets, f)
-        
+        # with open(path / fname, 'wb') as f:
+        #     pickle.dump(rets, f)
         print(f"Risk_tolerance: {param['risk_tolerance']}")
         print(f"{idx + 1}번째 pickle 저장 완료")
         print('#' * (idx + 1) + ' ' * (len(make_all_params()) - idx - 1) + f" ({idx + 1}/{len(make_all_params())})")
@@ -194,6 +203,8 @@ def load_pickle(param):
         if check_param(p, param):
             fname = f"factor_returns_{idx}.pickle"
             print(f"{idx + 1}번째 pickle 불러오기 완료")
+            print(p)
+            print(param)
             with open(path / fname, 'rb') as f:
                 rets = pickle.load(f)
                 
@@ -224,14 +235,14 @@ import yfinance as yf
 import time
 
 if __name__ == '__main__':
-    param = {
-        "start_date" : '2013-01-03',
-        "end_date" : '2022-12-30',
-        "factor" : ['beta'],
-        "cs_model" : 'ew',
-        "risk_tolerance" : 'aggressive',
-        "rebal_freq" : 'month',
-    }
+    # param = {
+    #     "start_date" : '2013-01-03',
+    #     "end_date" : '2022-12-30',
+    #     "factor" : ['beta'],
+    #     "cs_model" : 'ew',
+    #     "risk_tolerance" : 'aggressive',
+    #     "rebal_freq" : 'month',
+    # }
     # start = time.time()
     # rets = get_factor_returns(param)
     # end = time.time()
@@ -239,6 +250,5 @@ if __name__ == '__main__':
     # print(make_all_params())
     # sp500 = load_sp500(param)
     # print(sp500.loc[:'2020-02'])
-    save_pickle()
-    # portfolio = load_pickle(param)
-    # print(portfolio)
+    portfolio = load_pickle(param)
+    print(portfolio)
