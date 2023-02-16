@@ -142,8 +142,7 @@ def get_factor_returns(param):
     rets = test.factor_rets(factors=factors) #.dropna()
     cum_rets = (1 + rets).cumprod()
     print(cum_rets)
-    cum_rets = daily_to_period(cum_rets, period=param['rebal_freq'])
-    return cum_rets.fillna(1).iloc[1:, :]
+    return cum_rets
 
 ## backtest 결과를 받아서 chart에 필요한 컬러로 변환
 def color_pick(returns):
@@ -173,7 +172,8 @@ def save_pickle():
         
         with open(path / fname, 'wb') as f:
             pickle.dump(rets, f)
-                
+        
+        print(f"Risk_tolerance: {param['risk_tolerance']}")
         print(f"{idx + 1}번째 pickle 저장 완료")
         print('#' * (idx + 1) + ' ' * (len(make_all_params()) - idx - 1) + f" ({idx + 1}/{len(make_all_params())})")
 
@@ -193,7 +193,7 @@ def load_pickle(param):
     for idx, p in enumerate(make_all_params()):
         if check_param(p, param):
             fname = f"factor_returns_{idx}.pickle"
-            
+            print(f"{idx + 1}번째 pickle 불러오기 완료")
             with open(path / fname, 'rb') as f:
                 rets = pickle.load(f)
                 

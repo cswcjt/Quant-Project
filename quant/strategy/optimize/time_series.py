@@ -170,7 +170,7 @@ class TimeSeries:
         #     ts_weight = self.cppi()
             
         # ts weight만 확인
-        ts_weight = pd.concat([ts_weight, 1-ts_weight], axis=1)#, join='inner')
+        ts_weight = pd.concat([ts_weight, 1-ts_weight], axis=1, join='inner')
         ts_weight.columns = ['PORTFOLIO', 'CASH']
         
         # cs weight에 ts weight 적용한 최종 투자비중 산출
