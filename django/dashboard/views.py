@@ -1,4 +1,7 @@
+from config.settings.base import BASE_DIR
+from django.http import HttpResponse
 from django.shortcuts import render
+from django.templatetags.static import static
 from django.urls import reverse
 
 from dashboard.services import set_checkboxs_info
@@ -55,4 +58,9 @@ def portfolio(request):
 
 
 def presentation(request):
-     return render(request, 'dashboard/container/presentation.html')
+    print(BASE_DIR)
+    with open(BASE_DIR / 'static' / 'img' / 'presentation.pdf', 'rb') as pdf:
+        response = HttpResponse(pdf.read(), content_type='application/pdf')
+        response['Content-Disposition'] = 'filename=presentation..pdf'
+        return response
+    #  return render(request, 'dashboard/container/presentation.html')
