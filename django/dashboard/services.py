@@ -97,20 +97,10 @@ def request_transform(request: dict):
         'risk_parity' : 'rp',
     }
     
-    if data['start_date'] == '':
-        start = '2011-01-03'
-    else:
-        start = data['start_date']
-        
-    if data['end_date'] == '':
-        end = '2022-12-30'
-    else:
-        end = data['end_date']
-        
     try:
         res = {
-            "start_date" : start,
-            "end_date" : end,
+            "start_date" : data['start_date'],
+            "end_date" : data['end_date'],
             "factor" : factors,
             "cs_model" : convert_weights[data['weights']],
             "risk_tolerance" : data['risk_tolerance'],
@@ -118,8 +108,8 @@ def request_transform(request: dict):
         }
     except:
         res = {
-            "start_date" : start,
-            "end_date" : end,
+            "start_date" : '2011-01-03',
+            "end_date" : '2022-12-30',
             "factor" : factors,
             "cs_model" : 'ew',
             "risk_tolerance" : 'aggressive',
@@ -157,7 +147,7 @@ def color_pick(returns):
     if returns > 0:
         return '#ea5050'
     else:
-        return '#5050ea'
+        return '#0D6EFD'
 
 def make_all_params():
     param_grid = {
