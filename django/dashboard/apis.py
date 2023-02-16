@@ -123,7 +123,7 @@ class PortfolioAPIView(APIView):
                         } for name in names],
                 'type': 'area',
                 'height': 190,
-                'colors': ['#a9a0fc', '#e2e2e2']
+                'colors': ['#a9a0fc', '#d2d2d2']
             },
 
             'rolling_sharp_ratio': {
@@ -136,7 +136,7 @@ class PortfolioAPIView(APIView):
                         } for name in names],
                 'type': 'area',
                 'height': 190,
-                'colors': ['#a9a0fc', '#e2e2e2']
+                'colors': ['#a9a0fc', '#d2d2d2']
             },
             
             'metric': {},
