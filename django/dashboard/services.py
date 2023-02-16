@@ -71,7 +71,7 @@ def request_transform(request: dict):
     data = request.data
     try:
         freq = convert_freq[data['rebalancing_period']]
-    except:
+    except Exception as e:
         freq = 'month'
     
     try:
@@ -85,9 +85,14 @@ def request_transform(request: dict):
                 factors.append('prophet')
             else:
                 factors.append(factor)
-    except:
+    except Exception as e:
         factors = ['beta', 'mom', 'vol', 'prophet']
-        
+    
+    try:
+        risk = data['risk_tolerance']
+    except Exception as e:
+        risk = 'aggressive'
+    
     convert_weights = {
         'equal_weight' : 'ew',
         'equally_modified_variance' : 'emv',
@@ -98,23 +103,28 @@ def request_transform(request: dict):
     }
     
     try:
+        if data['start_date'] == '' or data['end_date'] == '':
+            raise Exception()
+        
         res = {
             "start_date" : data['start_date'],
             "end_date" : data['end_date'],
             "factor" : factors,
-            "cs_model" : convert_weights[data['weights']],
-            "risk_tolerance" : data['risk_tolerance'],
+            "cs_model" : 'ew',
+            "risk_tolerance" : risk,
             "rebal_freq" : freq,
         }
-    except:
+        
+    except Exception as e:
         res = {
             "start_date" : '2011-01-03',
             "end_date" : '2022-12-30',
             "factor" : factors,
             "cs_model" : 'ew',
-            "risk_tolerance" : 'aggressive',
+            "risk_tolerance" : risk,
             "rebal_freq" : freq,
         }
+        
     return res
 
 def get_factor_returns(param):
@@ -202,6 +212,12 @@ def load_pickle(param):
                     return rets.loc[start:end]
                 
                 elif isinstance(rets, pd.DataFrame):
+                    print('start', start)
+                    print(type(start))
+                    print('end', end)
+                    print(type(end))
+                    print(rets.index)
+                    
                     return rets.loc[start:end, :]
             
     return get_factor_returns(param)
@@ -225,14 +241,14 @@ import yfinance as yf
 import time
 
 if __name__ == '__main__':
-    # param = {
-    #     "start_date" : '2013-01-03',
-    #     "end_date" : '2022-12-30',
-    #     "factor" : ['beta'],
-    #     "cs_model" : 'ew',
-    #     "risk_tolerance" : 'aggressive',
-    #     "rebal_freq" : 'month',
-    # }
+    param = {
+        "start_date" : '2013-01-03',
+        "end_date" : '2022-12-30',
+        "factor" : ['beta'],
+        "cs_model" : 'ew',
+        "risk_tolerance" : 'aggressive',
+        "rebal_freq" : 'month',
+    }
     # start = time.time()
     # rets = get_factor_returns(param)
     # end = time.time()
