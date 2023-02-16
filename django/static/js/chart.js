@@ -48,6 +48,12 @@ class Chart {
             tooltip: {
                 shared: false,
             },
+            xaxis: {
+                type: 'datetime',
+                labels: {
+                  format: 'yyyy MM'
+                }
+            },
         };
 
         const chart = new ApexCharts(document.getElementById(canvas_id), options);
