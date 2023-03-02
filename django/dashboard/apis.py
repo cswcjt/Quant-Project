@@ -1,14 +1,10 @@
 import random
-import pandas as pd
-import yfinance as yf
 
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from dashboard.services import (
-    PJT_PATH,
-    daily_to_period,
     get_factor_returns, 
     color_pick,
     request_transform,
@@ -16,7 +12,7 @@ from dashboard.services import (
     load_pickle,
 )
 
-from quant.backtest.metric import Metric
+from backtest.services import Metric
 
 class FactorAPIView(APIView):
     def get_data(self, request):
@@ -70,11 +66,9 @@ class MarketAPIView(APIView):
         }
     def get(self, request, *args, **kwargs):
         data = self.get_data(request)
-        print(data)
         return Response(data=data, status=status.HTTP_200_OK)
 
     def post(self, request, *args, **kwargs):
-        print(request.data)
         data = self.get_data(request)
         return Response(data=data, status=status.HTTP_200_OK)
 
@@ -147,10 +141,11 @@ class PortfolioAPIView(APIView):
                     'CVaR_ratio', 'hit', 'GtP']
 
         for key in key_list:
-            data['metric'][key] = [{'name': name,
-                                    'data': report_dict[name][key],
-                                    'color': color_pick(float(report_dict[name][key])),
-                                    } for name in names]
+            data['metric'][key] = [{
+                'name': name,
+                'data': report_dict[name][key],
+                'color': color_pick(float(report_dict[name][key])),
+            } for name in names]
 
         return data
 

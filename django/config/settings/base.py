@@ -154,3 +154,5 @@ MESSAGE_TAGS = {
     messages_constants.DEBUG: 'secondary',
     messages_constants.ERROR: 'danger',
 }
+
+FRED_API_KEY = get_secret('FRED_API_KEY')

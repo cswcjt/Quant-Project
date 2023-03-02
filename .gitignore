@@ -4,6 +4,7 @@
 ### dataset directory ###
 data/
 *.csv
+*.pickle
 tft/
 quant/dask-tutorial.ipynb
 quant/backtest/test.ipynb
