@@ -1,21 +1,18 @@
 import itertools
-import os
 import pickle
-import sys
 import pandas as pd
 
-from pathlib import Path
+from django.conf import settings
+from django.templatetags.static import static
 
-PJT_PATH = Path(__file__).parents[2]
-sys.path.append(str(PJT_PATH))
+from core.scaling import convert_freq
+from price.services import rebal_dates
+from backtest.services.factor_backtest import FactorBacktest
 
-from scaling import convert_freq
-from quant.price.price_processing import rebal_dates
-from quant.backtest.factor_backtest import FactorBacktest
 
 def daily_to_period(df, period: str, include_first_date: bool=True):
-    rebal_rates = rebal_dates(df, period=period,
-                              include_first_date=include_first_date)
+    rebal_rates = rebal_dates(
+        df, period=period, include_first_date=include_first_date)
     
     if isinstance(df, pd.DataFrame):
         rets = df.loc[rebal_rates, :]
@@ -128,22 +125,25 @@ def request_transform(request: dict):
     return res
 
 def get_factor_returns(param):
-    path = PJT_PATH / 'quant'
     factors = param['factor']
 
     if 'factor' in param:
         del param['factor']
     
-    all_assets_df = pd.read_csv(path / 'alter_with_equity.csv', index_col=0)
+    all_assets_df = pd.read_csv(str(settings.BASE_DIR) + static('csv/alter_with_equity.csv'), index_col=0)
+
     all_assets_df.index = pd.to_datetime(all_assets_df.index)
     all_assets_df = all_assets_df.loc[param['start_date']:,].dropna(axis=1)
     
-    bs_df = pd.read_csv(path / 'business_cycle.csv', index_col=0)
+    bs_df = pd.read_csv(str(settings.BASE_DIR) + static('csv/business_cycle.csv'), index_col=0)
+
     bs_df.index = pd.to_datetime(bs_df.index)
 
-    test = FactorBacktest(all_assets=all_assets_df,
-                          business_cycle=bs_df,
-                          **param)
+    test = FactorBacktest(
+        all_assets=all_assets_df,
+        business_cycle=bs_df,
+        **param
+    )
     
     rets = test.factor_rets(factors=factors) #.dropna()
     cum_rets = (1 + rets).cumprod()
@@ -171,7 +171,7 @@ def make_all_params():
     return [dict(zip(param_grid.keys(), v)) for v in itertools.product(*param_grid.values())]
     
 def save_pickle():
-    path = PJT_PATH / 'django' / 'dashboard' / 'pickle' / 'factor'
+    path = settings.BASE_DIR / 'static' / 'pickle' / 'factor'
     
     for idx, param in enumerate(make_all_params()):
         fname = f"factor_returns_{idx}.pickle"
@@ -195,15 +195,15 @@ def check_param(param1, param2):
         return False
 
 def load_pickle(param):
-    path = PJT_PATH / 'django' / 'dashboard' / 'pickle' / 'factor'
     start = '-'.join(param['start_date'].split('-')[:2])
     end = '-'.join(param['end_date'].split('-')[:2])
+
     for idx, p in enumerate(make_all_params()):
         
         if check_param(p, param):
             fname = f"factor_returns_{idx}.pickle"
             
-            with open(path / fname, 'rb') as f:
+            with open(str(settings.BASE_DIR) + static(f'pickle/factor/{fname}'), 'rb') as f:    
                 rets = pickle.load(f)
                 
                 return rets.loc[start:end, param['factor']]
@@ -212,14 +212,13 @@ def load_pickle(param):
 
 def save_sp500():
     sp500 = yf.download('SPY', start='2011-01-03', end='2022-12-30', progress=False)['Adj Close']
-    path = PJT_PATH / 'django' / 'dashboard' / 'pickle'
+    path = settings.BASE_DIR / 'static' / 'pickle'
+    
     with open(path / 'sp500.pickle', 'wb') as f:
         pickle.dump(sp500, f)
 
-def load_sp500(param):
-    path = PJT_PATH / 'django' / 'dashboard' / 'pickle'
-    
-    with open(path / 'sp500.pickle', 'rb') as f:
+def load_sp500(param):    
+    with open(str(settings.BASE_DIR) + static('pickle/sp500.pickle'), 'rb') as f:
         sp500 = pickle.load(f)
         
     sp500 = daily_to_period(sp500, param['rebal_freq'], include_first_date=False)
