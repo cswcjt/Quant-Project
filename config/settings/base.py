@@ -52,8 +52,12 @@ DJANGO_APPS = [
 
 PROJECT_APPS = [
     'accounts.apps.AccountsConfig',
+    'backtest.apps.BacktestConfig',
     'core.apps.CoreConfig',
     'dashboard.apps.DashboardConfig',
+    'econ_regime.apps.EconRegimeConfig',
+    'price.apps.PriceConfig',
+    'strategy.apps.StrategyConfig',
 ]
 
 THIRD_PARTY_APPS = [
