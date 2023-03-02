@@ -1,4 +1,4 @@
-from config.settings.base import BASE_DIR
+from django.conf import settings
 from django.http import HttpResponse
 from django.shortcuts import render
 from django.templatetags.static import static
@@ -58,9 +58,7 @@ def portfolio(request):
 
 
 def presentation(request):
-    print(BASE_DIR)
-    with open(BASE_DIR / 'static' / 'img' / 'presentation.pdf', 'rb') as pdf:
+    with open(str(settings.BASE_DIR) + static('img/presentation.pdf'), 'rb') as pdf:
         response = HttpResponse(pdf.read(), content_type='application/pdf')
         response['Content-Disposition'] = 'filename=presentation..pdf'
         return response
-    #  return render(request, 'dashboard/container/presentation.html')
